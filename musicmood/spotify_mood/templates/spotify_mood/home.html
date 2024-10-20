@@ -1,0 +1,409 @@
+{% extends 'navbar.html' %}
+{% load static %}
+{% block navbar %}
+<form method="POST" action="{% url 'spotify_mood:home' %}" style="padding: 20px;" onsubmit="return validateForm()">
+    {% csrf_token %}
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin-top: 5%;">
+        <h1 class = "custom-h1">Cześć {{user.name}}!</h1>
+        <div class="home_div">
+            <h1>Wybierz swój nastrój:</h1>
+            <div style="position: relative; width: 500px;">
+                <input type="text" id="moodInput" name="mood" placeholder="Wybierz nastrój" readonly
+                       style="width: 100%; padding: 8px;">
+                <button type="button" id="moodDropdownButton" onclick="toggleMoodDropdown()"
+                        style="position: absolute; right: 0; top: 0; height: 100%; background: none; border: none; cursor: pointer;">
+                    &#9660;
+                </button>
+                <ul id="moodDropdown"
+                    style="display: none; position: absolute; width: 100%; max-height: 150px; overflow-y: auto; border: 1px solid #ccc; background-color: white; z-index: 1000;">
+                    {% for mood in moods %}
+                    <li style="padding: 8px; cursor: pointer;" onclick="selectMood('{{ mood }}')">{{ mood }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div id="moodIntensity" style="display: none; margin-top: 20px;">
+                <h3>Wybierz intensywność nastroju:</h3>
+                <label>
+                    <input type="radio" name="intensity" value="0"> Lekko
+                </label>
+                <label>
+                    <input type="radio" name="intensity" value="1" checked> Średnio
+                </label>
+                <label>
+                    <input type="radio" name="intensity" value="2"> Bardzo
+                </label>
+            </div>
+
+            <div id="customMoodSliders" style="display: none; margin-top: 20px;">
+                <h3>Ustaw swoje własne parametry:</h3>
+                <div class="slider-container">
+                    <h3>Energia: <span id="energyValue">0.5</span></h3>
+                    <input type="range" id="energy" name="energy" min="0" max="1" value="0.5" step="0.01">
+                </div>
+                <div class="slider-container">
+                    <h3>Tempo: <span id="tempoValue">100</span></h3>
+                    <input type="range" id="tempo" name="tempo" min="60" max="200" value="130" step="1">
+                </div>
+                <div class="slider-container">
+                    <h3>Pozytywność: <span id="positivityValue">0.5</span></h3>
+                    <input type="range" id="positivity" name="positivity" min="0" max="1" value="0.5" step="0.01">
+                </div>
+                <div class="slider-container">
+                    <h3>Głośność: <span id="loudnessValue">-30</span> dB</h3>
+                    <input type="range" id="loudness" name="loudness" min="-60" max="0" value="-30" step="1">
+                </div>
+                <div class="slider-container">
+                    <h3>Taneczność: <span id="danceabilityValue">0.5</span></h3>
+                    <input type="range" id="danceability" name="danceability" min="0" max="1" value="0.5"
+                           step="0.01">
+                </div>
+            </div>
+        </div>
+
+        <div class="home_div">
+            <h1>Wybierz preferowaną długość utworu:</h1>
+            <label>
+                <input type="radio" name="length" value="(0,2)" {%if settings and settings.song_time == "(0,2)"%}checked{%endif%}> 0-2 min
+            </label>
+            <label>
+                <input type="radio" name="length" value="(2,3)" {%if settings and settings.song_time == "(2,3)"%}checked{%endif%}> 2-3 min
+            </label>
+            <label>
+                <input type="radio" name="length" value="(3,4)" {%if settings and settings.song_time == "(3,4)"%}checked{%endif%}> 3-4 min
+            </label>
+            <label>
+                <input type="radio" name="length" value="(4,None)" {%if settings and settings.song_time == "(4,None)"%}checked{%endif%}> 4+ min
+            </label>
+        </div>
+
+        <div class="home_div">
+            <h1>Wybierz swoje ulubione gatunki muzyczne i ich zawartość procentową:</h1>
+            <div id="percentageError" style="display: none; color: red; font-weight: bold;">
+                Łączna zawartość procentowa gatunków musi wynosić 100
+            </div>
+
+            <div style="position: relative; width: 500px;">
+                <input type="text" id="genreSearch" placeholder="Wpisz nazwę gatunku..." onkeyup="searchGenres()" style="width: 100%; padding: 8px;">
+                <ul id="genreSuggestions" style="display: none;"></ul>
+            </div>
+            <div id="selectedGenresContainer" style="margin-top: 10px;"></div>
+            <input type="hidden" id="selectedGenresInput" name="selected_genres">
+            <input type="hidden" id="genrePercentagesInput" name="genre_percentages">
+        </div>
+
+
+
+        <div class="home_div">
+            <h1>Ustawienia playlisty:</h1>
+
+            <div style="display: flex; align-items: flex-start; margin-bottom: 20px;">
+                <div style="margin-right: 10%; ">
+                    <label for="playlist_name">Nazwa playlisty</label><br>
+                    <input type="text" id="playlist_name" name="playlist_name" maxlength="45"
+                           placeholder="Wprowadź nazwę" style="width: 200px;">
+                </div>
+                <div>
+                    <label for="track_count">Ilość utworów</label><br>
+                    <input type="number" id="track_count" name="track_count" min="20" step="5" max="50" value="20"
+                           style="width: 80px;">
+                </div>
+            </div>
+
+            <div>
+                <label for="playlist_description">Opis</label><br>
+                <textarea id="playlist_description" name="playlist_description" maxlength="225"
+                          placeholder="Dodaj opis..." rows="2" style="width: 70%;"></textarea>
+            </div>
+        </div>
+
+        <button class="btn" type="submit" style="margin-top: 10px">
+            <svg width="220px" height="70px" viewBox="0 0 220 70" class="border rounded">
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
+            </svg>
+            <span>Generuj</span>
+        </button>
+
+        <div id="loadingModal">
+            <div id="modalContents">
+                <h2 id="loadingText">Tworzenie playlisty</h2>
+                <p>Proszę czekać na przekierowanie.</p>
+            </div>
+        </div>
+
+
+
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ranges = document.querySelectorAll('input[type="range"]');
+
+        ranges.forEach(range => {
+            updateSlider(range);
+            range.addEventListener('input', function () {
+                updateSlider(this);
+            });
+        });
+        const preferredGenre = "{{ preferred_genre }}";
+        if (preferredGenre) {
+            window.onload = function() {
+                selectGenre(preferredGenre);
+            };
+        }
+    });
+
+    function updateSlider(slider) {
+        const val = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+        slider.style.setProperty('--val', `${val}%`);
+        const valueSpan = document.getElementById(slider.id + "Value");
+        if (valueSpan) {
+            valueSpan.textContent = slider.value;
+        }
+    }
+
+
+    function toggleMoodDropdown() {
+        const dropdown = document.getElementById('moodDropdown');
+        dropdown.style.display = (dropdown.style.display === 'none' || dropdown.style.display === '') ? 'block' : 'none';
+    }
+
+    function selectMood(mood) {
+        document.getElementById('moodInput').value = mood;
+        document.getElementById('moodDropdown').style.display = 'none';
+
+        const customMoodSliders = document.getElementById('customMoodSliders');
+        const moodIntensity = document.getElementById('moodIntensity');
+
+        if (mood === 'własny') {
+            customMoodSliders.style.display = 'block';
+            moodIntensity.style.display = 'none';
+        } else {
+            customMoodSliders.style.display = 'none';
+            moodIntensity.style.display = 'block';
+        }
+    }
+
+    let selectedGenres = [];
+    let genrePercentages = [];
+
+    function searchGenres() {
+        const query = document.getElementById('genreSearch').value;
+        const suggestions = document.getElementById('genreSuggestions');
+
+        if (query === '') {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        fetch(`/search_genres/?q=` + query)
+            .then(response => response.json())
+            .then(data => {
+                suggestions.innerHTML = '';
+
+                if (data.genres.length > 0) {
+                    data.genres.forEach(genre => {
+                        const li = document.createElement('li');
+                        li.textContent = genre;
+                        li.style.padding = '8px';
+                        li.style.cursor = 'pointer';
+                        li.onclick = () => selectGenre(genre);
+                        suggestions.appendChild(li);
+                    });
+
+                    suggestions.style.display = 'block';
+                } else {
+                    suggestions.style.display = 'none';
+                }
+            });
+    }
+
+    function selectGenre(genre) {
+        if (selectedGenres.length >= 4) {
+            alert('Możesz wybrać maksymalnie cztery gatunki.');
+            return;
+        }
+
+        if (!selectedGenres.includes(genre)) {
+            selectedGenres.push(genre);
+            genrePercentages = distributePercentages(selectedGenres.length);
+            updateSelectedGenres();
+        }
+
+        document.getElementById('genreSearch').value = '';
+
+        document.getElementById('genreSuggestions').style.display = 'none';
+    }
+
+    function distributePercentages(count) {
+        let percentages = [];
+        if (count === 1) {
+            percentages = [100];
+        } else if (count === 2) {
+            percentages = [50, 50];
+        } else if (count === 3) {
+            percentages = [35, 35, 30];
+        } else if (count === 4) {
+            percentages = [25, 25, 25, 25];
+        }
+        return percentages;
+    }
+
+    function updateSelectedGenres() {
+        const container = document.getElementById('selectedGenresContainer');
+        const selectedGenresInput = document.getElementById('selectedGenresInput');
+        const genrePercentagesInput = document.getElementById('genrePercentagesInput');
+        const percentageError = document.getElementById('percentageError');
+        container.innerHTML = '';
+
+        container.classList.add('selected-genres-container');
+
+        selectedGenres.forEach((genre, index) => {
+            const genreTag = document.createElement('div');
+            genreTag.classList.add('genre-tag');
+
+            const genreName = document.createElement('span');
+            genreName.textContent = genre;
+            genreName.style.flex = '1';
+
+            const genrePercentageInput = document.createElement('input');
+            genrePercentageInput.type = 'number';
+            genrePercentageInput.value = genrePercentages[index];
+            genrePercentageInput.min = "0";
+            genrePercentageInput.max = "100";
+            genrePercentageInput.step = "5";
+            genrePercentageInput.classList.add('genre-percentage-input');
+            genrePercentageInput.oninput = function () {
+                updatePercentage(index, parseInt(this.value, 10));
+            };
+
+            const removeButton = document.createElement('span');
+            removeButton.textContent = ' X';
+            removeButton.classList.add('remove-button');
+            removeButton.onclick = () => removeGenre(index);
+
+            genreTag.appendChild(genreName);
+            genreTag.appendChild(genrePercentageInput);
+            genreTag.appendChild(removeButton);
+            container.appendChild(genreTag);
+        });
+
+        selectedGenresInput.value = selectedGenres.join(',');
+        genrePercentagesInput.value = genrePercentages.join(',');
+
+        const totalPercentage = genrePercentages.reduce((acc, perc) => acc + perc, 0);
+        if (totalPercentage > 100) {
+            percentageError.textContent = 'Suma procentowa gatunków nie może przekraczać 100%.';
+            percentageError.style.display = 'block';
+        } else if (totalPercentage < 100) {
+            percentageError.textContent = 'Suma procentowa gatunków musi wynosić 100%.';
+            percentageError.style.display = 'block';
+        } else {
+            percentageError.style.display = 'none';
+        }
+    }
+
+    function updatePercentage(index, value) {
+        const total = genrePercentages.reduce((acc, perc, i) => (i !== index ? acc + perc : acc), 0);
+        const remaining = 100 - total;
+
+        if (value > remaining) {
+            alert(`Suma procentowa gatunków musi wynosić 100%. Jeśli chcesz zwiększyć % dla tego gatunku, najpierw zabierz z innego.`);
+            genrePercentages[index] = remaining;
+        } else {
+            genrePercentages[index] = value;
+        }
+
+        updateSelectedGenres();
+    }
+
+    function removeGenre(index) {
+        selectedGenres.splice(index, 1);
+        genrePercentages.splice(index, 1);
+        updateSelectedGenres();
+
+        if (selectedGenres.length === 0) {
+            const percentageError = document.getElementById('percentageError');
+            percentageError.style.display = 'none';
+        }
+    }
+
+
+    document.addEventListener('click', function (event) {
+        const genreSuggestions = document.getElementById('genreSuggestions');
+        const genreSearch = document.getElementById('genreSearch');
+
+        if (genreSuggestions && !genreSearch.contains(event.target) && !genreSuggestions.contains(event.target)) {
+            genreSuggestions.style.display = 'none';
+        }
+    });
+
+    function showLoadingModal() {
+        const modal = document.getElementById('loadingModal');
+        const loadingText = document.getElementById('loadingText');
+        modal.style.display = 'flex';
+
+        let dotCount = 0;
+
+        const loadingInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            let dots = '.'.repeat(dotCount);
+            loadingText.textContent = `Tworzenie playlisty${dots}`;
+        }, 500);
+
+
+        modal.dataset.loadingInterval = loadingInterval;
+    }
+
+
+
+    function validateForm() {
+        const mood = document.getElementById('moodInput').value;
+        if (!mood) {
+            alert('Musisz wybrać jeden z nastrojów z listy.');
+            return false;
+        }
+
+        const selectedGenres = document.getElementById('selectedGenresInput').value;
+        const genrePercentages = document.getElementById('genrePercentagesInput').value.split(',').map(Number);
+        const totalPercentage = genrePercentages.reduce((acc, perc) => acc + perc, 0);
+
+        if (!selectedGenres) {
+            alert('Musisz wybrać przynajmniej jeden gatunek muzyczny.');
+            return false;
+        }
+
+        if (totalPercentage !== 100) {
+            alert('Suma procentowa gatunków musi wynosić 100%.');
+            return false;
+        }
+
+        const lengthChecked = document.querySelector('input[name="length"]:checked');
+        if (!lengthChecked) {
+            alert('Musisz wybrać jedną z preferowanych długości utworu.');
+            return false;
+        }
+
+        const playlistName = document.getElementById('playlist_name').value.trim();
+        if (!playlistName) {
+            alert('Musisz podać nazwę playlisty.');
+            return false;
+        }
+
+        const playlistDescription = document.getElementById('playlist_description').value.trim();
+        if (!playlistDescription) {
+            alert('Musisz podać opis playlisty.');
+            return false;
+        }
+
+        showLoadingModal();
+        return true;
+    }
+
+
+
+
+</script>
+{% endblock %}

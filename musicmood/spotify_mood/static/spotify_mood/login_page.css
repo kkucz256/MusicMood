@@ -1,0 +1,37 @@
+body {
+  background-color: var(--jasno-szary);
+  color: var(--tekst);
+}
+.login-container {
+  background-color: var(--najciemniejszy);
+  border: 2px solid var(--wiodący);
+  padding: 40px;
+  width: 60%;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  margin: 100px auto;
+}
+
+.login-container img {
+  margin-bottom: 40px;
+}
+
+.login-container h1 {
+  color: var(--tekst);
+  font-size: 40px;
+  margin-bottom: 20px;
+}
+
+.login-container h3 {
+  color: var(--tekst);
+  font-size: 22px;
+  margin-bottom: 40px;
+}
+
+
+.login-container p {
+  color: var(--tekst);
+  font-size: 18px;
+  margin-bottom: 20px;
+}

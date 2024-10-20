@@ -1,0 +1,106 @@
+{% extends 'navbar.html' %}
+{% load static %}
+{% block navbar %}
+<div class="center-container">
+    <div class="settings-wrapper">
+        <h1 class = "custom-h1">Ustawienia</h1>
+        <h5>Tutaj możesz zapisać swoje preferencje do generowania playlist w celu przyspieszenia procesu:</h5>
+        <div class="settings_div">
+            <form method="POST" action="{% url 'spotify_mood:settings' %}" onsubmit="return validateGenre()">
+                {% csrf_token %}
+                <h2>Preferowany gatunek muzyczny:</h2>
+                <div id="genre-container" style="position: relative; width: 100%; align-items: center;">
+                    <input type="text" id="genreSearch" name="genre_preference" value="{{ preferred_genre }}"
+                        placeholder="Wpisz nazwę gatunku..." onkeyup="searchGenres()">
+                    <ul id="genreSuggestions_s"></ul>
+                </div>
+
+                <h2>Preferowana długość utworu:</h2>
+                <div class="radio-container">
+                    <label>
+                        <input type="radio" name="song_time" value="(0,2)" {%if settings and settings.song_time == "(0,2)"%}checked{%endif%}> 0-2 min
+                    </label>
+                    <label>
+                        <input type="radio" name="song_time" value="(2,3)" {%if settings and settings.song_time == "(2,3)" %}checked{%endif%}> 2-3 min
+                    </label>
+                    <label>
+                        <input type="radio" name="song_time" value="(3,4)" {%if settings and settings.song_time == "(3,4)"%}checked{%endif%}> 3-4 min
+                    </label>
+                    <label>
+                        <input type="radio" name="song_time" value="(4,None)" {%if settings and settings.song_time == "(4,None)"%}checked{%endif%}> 4+ min
+                    </label>
+                    <label>
+                        <input type="radio" name="song_time" value="" {%if not settings or settings.song_time is None%}checked{%endif%}> Brak preferencji
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: center; margin-top: 10px;">
+                    <button class="btn" type="submit" style="width: 220px;">
+                        <svg width="220px" height="70px" viewBox="0 0 220 70" class="border rounded">
+                            <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
+                            <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
+                        </svg>
+                        <span>Zapisz</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    let availableGenres = [];
+
+function searchGenres() {
+    const query = document.getElementById('genreSearch').value;
+    const suggestions = document.getElementById('genreSuggestions_s');
+
+    if (query === '') {
+        suggestions.style.display = 'none';
+        availableGenres = [];
+        return;
+    }
+
+    fetch(`/search_genres/?q=` + query)
+        .then(response => response.json())
+        .then(data => {
+            suggestions.innerHTML = '';
+            availableGenres = data.genres;
+
+            data.genres.forEach(genre => {
+                const li = document.createElement('li');
+                li.textContent = genre;
+                li.style.padding = '8px';
+                li.style.cursor = 'pointer';
+                li.onclick = () => selectGenre(genre);
+                suggestions.appendChild(li);
+            });
+
+            if (data.genres.length > 0) {
+                suggestions.style.display = 'block';
+            } else {
+                suggestions.style.display = 'none';
+            }
+        });
+}
+
+function selectGenre(genre) {
+    document.getElementById('genreSearch').value = genre;
+    document.getElementById('genreSuggestions_s').style.display = 'none';
+}
+
+function validateGenre() {
+    const selectedGenre = document.getElementById('genreSearch').value;
+
+
+    if (availableGenres.length === 0 || !availableGenres.includes(selectedGenre)) {
+        alert('Gatunek ' + selectedGenre + ' nie istnieje. Proszę wybrać gatunek z listy.');
+        return false;
+    }
+    alert('Udało się zapisać gatunek ' + selectedGenre + ' i preferowaną długość utworu.');
+    return true;
+}
+
+</script>
+{% endblock %}

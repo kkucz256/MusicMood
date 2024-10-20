@@ -1,0 +1,325 @@
+{% extends 'navbar.html' %}
+{% load static %}
+{% block navbar %}
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin-top: 7%;">
+    <h1 class = "custom-h1">Playlisty użytkownika {{user.name}} stworzone za pomocą aplikacji</h1>
+
+    {% if playlist_data %}
+        {% for entry in playlist_data %}
+            <div class="play_div">
+                <div class="playlist-info">
+                    {% if entry.image_url %}
+                        <img src="{{ entry.image_url }}" alt="Playlist Image" class="playlist-img" loading="lazy">
+                    {% endif %}
+                    <div class="playlist-details">
+                        <h2>{{ entry.playlist.name }}</h2>
+                        <p>Spotify ID: {{ entry.playlist.spotify_id }}</p>
+                    </div>
+                     <div class="player-controls">
+                        <i class="bi bi-skip-forward-circle"></i>
+                        <i class="bi bi-play-circle play-toggle" data-uri="spotify:playlist:{{ entry.playlist.spotify_id }}"></i>
+                        <i class="bi bi-skip-backward-circle"></i>
+                    </div>
+                </div>
+
+
+
+                <div class="expand-btn">
+                    <i class="bi bi-caret-down" id="expand-icon-{{ entry.playlist.spotify_id }}" onclick="toggleSongs('{{ entry.playlist.spotify_id }}')"></i>
+                </div>
+
+                <div class="songs-list" id="songs-{{ entry.playlist.spotify_id }}" style="display: none; max-height: 300px; overflow-y: auto;">
+                    {% if entry.songs %}
+                        <ul class="song-items">
+                            {% for item in entry.songs %}
+                                <li class="song-item" data-track-uri="spotify:track:{{ item.song.spotify_id }}">
+                                    <div class="song-img">
+                                        {% if item.image_url %}
+                                            <img src="{{ item.image_url }}" alt="Song Image" loading="lazy">
+                                        {% endif %}
+                                    </div>
+                                    <div class="song-details">
+                                        <div class="song-title-container">
+                                            <strong class="song-title">{{ item.song.title }}</strong><br>
+                                             <span class="playing-status">- Odtwarzanie</span>
+                                        </div>
+                                        <span class="song-artists">
+                                            {% for artist in item.artists %}
+                                                {{ artist.artist }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </span>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>Brak piosenek w tej playliście.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Brak playlist do wyświetlenia.</p>
+    {% endif %}
+</div>
+<script>
+
+    function toggleSongs(playlistId) {
+        const songDiv = document.getElementById('songs-' + playlistId);
+        const expandIcon = document.getElementById('expand-icon-' + playlistId);
+        if (songDiv.style.display === 'none') {
+            songDiv.style.display = 'block';
+            expandIcon.classList.remove('bi-caret-down');
+            expandIcon.classList.add('bi-caret-up');
+        } else {
+            songDiv.style.display = 'none';
+            expandIcon.classList.remove('bi-caret-up');
+            expandIcon.classList.add('bi-caret-down');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const playToggles = document.querySelectorAll('.play-toggle');
+        playToggles.forEach(toggle => {
+            toggle.addEventListener('click', function () {
+                const playlistUri = this.dataset.uri;
+                if (!playlistUri || !playlistUri.startsWith('spotify:playlist:')) {
+                    console.error('Nieprawidłowy URI playlisty:', playlistUri);
+                    return;
+                }
+                if (toggle.classList.contains('bi-play-circle')) {
+                    playPlaylist(playlistUri);
+                    toggle.classList.remove('bi-play-circle');
+                    toggle.classList.add('bi-pause-circle');
+                } else {
+                    pause();
+                    toggle.classList.remove('bi-pause-circle');
+                    toggle.classList.add('bi-play-circle');
+                }
+            });
+        });
+        //Notatka dla przyszłego mnie - nie wiedzieć czemu ikony w bootstrap nazywają się na odwrót stąd next = backwards
+        const nextButtons = document.querySelectorAll('.bi-skip-backward-circle');
+        nextButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                nextTrack();
+            });
+        });
+
+        const prevButtons = document.querySelectorAll('.bi-skip-forward-circle');
+        prevButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                previousTrack();
+            });
+        });
+    });
+
+    window.onSpotifyWebPlaybackSDKReady = () => {
+        const token = '{{ request.session.access_token }}';
+        const player = new Spotify.Player({
+            name: 'Praca inżynierska kkucz',
+            getOAuthToken: cb => { cb(token); },
+            volume: 0.5
+        });
+
+        player.addListener('ready', ({ device_id }) => {
+            console.log('Uzyskano ID urządzenia:', device_id);
+            window.deviceId = device_id;
+        });
+
+        player.addListener('not_ready', ({ device_id }) => {
+            console.log('ID urządzenia jest niedostępne:', device_id);
+        });
+
+        player.connect();
+    };
+
+    let lastTrackUri = null;
+    let lastPositionMs = 0;
+    let playlistTracks = [];
+    let currentTrackIndex = 0;
+    let lastTrackElement = null;
+    let dotInterval = null;
+
+    async function playPlaylist(uri) {
+        const deviceId = window.deviceId;
+        const token = '{{ request.session.access_token }}';
+
+        if (!deviceId) {
+            console.error('Brak ID urządzenia');
+            return;
+        }
+
+        const playlistId = uri.split(':')[2];
+        const tracksResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        if (tracksResponse.ok) {
+            const tracksData = await tracksResponse.json();
+            playlistTracks = tracksData.items.map(item => item.track.uri);
+
+            if (lastTrackUri && playlistTracks.includes(lastTrackUri)) {
+                currentTrackIndex = playlistTracks.indexOf(lastTrackUri);
+                playTrackAtIndex(currentTrackIndex, true);
+            } else {
+                currentTrackIndex = 0;
+                playTrackAtIndex(currentTrackIndex);
+            }
+        } else {
+            const errorMessage = await tracksResponse.text();
+            console.error('Błąd podczas pobierania utworów z playlisty', tracksResponse.status, errorMessage);
+        }
+    }
+
+
+    async function playTrackAtIndex(index, resume = false) {
+        const deviceId = window.deviceId;
+        const token = '{{ request.session.access_token }}';
+
+        if (!deviceId) {
+            console.error('Brak ID urządzenia');
+            return;
+        }
+
+        if (playlistTracks.length === 0) {
+            console.error('Brak utworów w playliście');
+            return;
+        }
+
+        const trackUri = playlistTracks[index];
+        console.log(`Próba odtworzenia utworu z indeksu ${index}: ${trackUri}`);
+
+        const playOptions = resume && lastTrackUri === trackUri && lastPositionMs > 0
+            ? { uris: [trackUri], position_ms: lastPositionMs }
+            : { uris: [trackUri] };
+
+        const trackElement = document.querySelector(`.song-item[data-track-uri="${trackUri}"]`);
+        const trackTitle = trackElement ? trackElement.querySelector('.song-title').textContent : 'Nieznany utwór';
+
+        const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+            method: 'PUT',
+            body: JSON.stringify(playOptions),
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        if (response.ok) {
+            console.log(`Odtwarzanie utworu z indeksu ${index}: ${trackUri}`);
+            lastTrackUri = trackUri;
+            if (!resume) {
+                lastPositionMs = 0;
+            }
+
+            if (lastTrackElement) {
+                lastTrackElement.querySelector('.song-title').style.color = '';
+                lastTrackElement.querySelector('.playing-status').style.display = 'none';
+            }
+
+            const trackElement = document.querySelector(`.song-item[data-track-uri="${trackUri}"]`);
+            if (trackElement) {
+                trackElement.querySelector('.song-title').style.color = '#2980B9';
+                trackElement.querySelector('.playing-status').style.display = 'inline';
+                lastTrackElement = trackElement;
+
+                animateDots(trackElement.querySelector('.playing-status'));
+            }
+
+        } else if (response.status === 403) {
+        console.error('Błąd podczas odtwarzania utworu', response.status, await response.text());
+        alert(`Brak dostępu do utworu "${trackTitle}" z poziomu Spotify`);
+        }
+        else {
+            const errorMessage = await response.text();
+            console.error('Błąd podczas odtwarzania utworu', response.status, errorMessage);
+        }
+    }
+
+
+    async function pause() {
+        const deviceId = window.deviceId;
+        const token = '{{ request.session.access_token }}';
+
+        if (!deviceId) {
+            console.error('Brak ID urządzenia');
+            return;
+        }
+
+        const playbackStateResponse = await fetch('https://api.spotify.com/v1/me/player', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        if (playbackStateResponse.ok) {
+            const playbackState = await playbackStateResponse.json();
+            if (playbackState && playbackState.item) {
+                lastTrackUri = playbackState.item.uri;
+                lastPositionMs = playbackState.progress_ms;
+                console.log('Zapamiętano obecny utwór i pozycję:', lastTrackUri, lastPositionMs);
+            }
+        } else {
+            const errorMessage = await playbackStateResponse.text();
+            console.error('Błąd podczas wczytywania stanu odtwarzacza', playbackStateResponse.status, errorMessage);
+        }
+
+        const response = await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        if (response.ok) {
+            console.log('Odtwarzanie zatrzymane');
+            if (lastTrackElement) {
+                lastTrackElement.querySelector('.song-title').style.color = '';
+                lastTrackElement.querySelector('.playing-status').style.display = 'none';
+                clearInterval(dotInterval);
+            }
+        } else {
+            const errorMessage = await response.text();
+            console.error('Błąd podczas zatrzymywania odtwarzania', response.status, errorMessage);
+        }
+    }
+
+    async function nextTrack() {
+        if (playlistTracks.length === 0) {
+            console.error('Brak utworów w playliście');
+            return;
+        }
+
+        currentTrackIndex = (currentTrackIndex + 1) % playlistTracks.length;
+        playTrackAtIndex(currentTrackIndex);
+    }
+
+    async function previousTrack() {
+        if (playlistTracks.length === 0) {
+            console.error('Brak utworów w playliście');
+            return;
+        }
+
+        currentTrackIndex = (currentTrackIndex - 1 + playlistTracks.length) % playlistTracks.length;
+        playTrackAtIndex(currentTrackIndex);
+    }
+    function animateDots(element) {
+        let dotCount = 0;
+
+        if (dotInterval) {
+            clearInterval(dotInterval);
+        }
+
+        dotInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            element.textContent = '- Odtwarzanie' + '.'.repeat(dotCount);
+        }, 500);
+    }
+</script>
+
+{% endblock %}

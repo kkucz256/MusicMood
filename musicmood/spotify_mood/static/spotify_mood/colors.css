@@ -1,0 +1,9 @@
+:root {
+    --wiodący: #2980B9;
+    --ciemny-wiodący: #1F618D;
+    --jasno-szary: #45474B;
+    --ciemniejszy-szary: #343539;
+    --najciemniejszy: rgba(0, 0, 0, 0.5);
+    --najciemniejszy_bez_cienia: #222325;
+    --tekst: #FFFFFF;
+}

@@ -1,0 +1,23 @@
+{% extends 'navbar.html' %}
+{% load static %}
+{% block navbar %}
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;">
+    <div class="settings_div">
+        <h1>O aplikacji MusicMood</h1>
+            <p>
+                Aplikacja <span id="tekst">MusicMood</span> służy do generowania spersonalizowanych playlist na podstawie nastroju i
+                preferencji użytkownika. Użytkownik może wybierać spośród różnych emocji, takich jak szczęśliwy, smutny czy
+                spokojny oraz ich intensywności, a zarekomendowane zostaną utwory pasujące do jego aktualnego nastroju. Dodatkowo, użytkownik
+                może określić preferowaną długość utworów oraz ulubione gatunki muzyczne, dzięki czemu playlista staje się bardziej dostosowana do indywidualnych preferencji.
+                Algorytm do rekomendacji utworów bazuje na endpoincie API Spotify /recommendations wzbogaconym o dodatkowe rekomendowanie utworu
+                z pomocą logiki rozmytej, przez co playlisty są bardziej dostosowane do preferencji użytkownika w danym momencie. Aplikacja integruje się z kontem Spotify,
+                umożliwiając logowanie oraz automatyczne zapisywanie wygenerowanych playlist bezpośrednio w profilu
+                użytkownika.
+            </p>
+        <h5>WAŻNE: MusicMood powstała tylko wyłącznie w celach naukowych i nie jest oficjalnym tworem ani produktem
+            firmy Spotify.
+        </h5>
+        <h6>Logo: <a href="https://www.flaticon.com/free-icon/music_2402461?term=music+note&page=1&position=20&origin=tag&related_id=2402461" title="music icons">Link do autora</a></h6>
+    </div>
+</div>
+{% endblock %}
