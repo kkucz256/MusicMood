@@ -9,7 +9,7 @@ html::-webkit-scrollbar {
     display: none;
 }
 
-.songs-list::-webkit-scrollbar,
+.songs-list::-webkit-scrollbar, .playlist-list::-webkit-scrollbar,
 #genreSuggestions::-webkit-scrollbar,
 #genreSuggestions_s::-webkit-scrollbar,
 #moodDropdown::-webkit-scrollbar {
@@ -25,7 +25,7 @@ html::-webkit-scrollbar {
 }
 
 
-.songs-list::-webkit-scrollbar-thumb,
+.songs-list::-webkit-scrollbar-thumb, .playlist-list::-webkit-scrollbar-thumb,
 #genreSuggestions::-webkit-scrollbar-thumb,
 #genreSuggestions_s::-webkit-scrollbar-thumb,
 #moodDropdown::-webkit-scrollbar-thumb {

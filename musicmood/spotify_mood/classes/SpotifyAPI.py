@@ -209,7 +209,7 @@ class SpotifyAPI:
         return matching_tracks
 
     def search_tracks_by_features_v3(self, access_token, energy, valence, tempo, loudness, danceability, length_min,
-                                     length_max, seed_genre, track_seeds, track_count, min_popularity=45):
+                                     length_max, track_seeds, track_count, seed_genre, min_popularity=50):
         headers = {'Authorization': f'Bearer {access_token}'}
         url = 'https://api.spotify.com/v1/recommendations'
 
@@ -229,22 +229,6 @@ class SpotifyAPI:
             'max_duration_ms': length_max_ms,
             'min_popularity': min_popularity
         }
-        # params = {
-        #     'limit': track_count,
-        #     'seed_genres': seed_genre,
-        #     'seed_tracks': ','.join(track_seeds),
-        #     'min_energy': energy * 0.8,
-        #     'max_energy': energy * 1.2,
-        #     'min_valence': valence * 0.8,
-        #     'max_valence': valence * 1.2,
-        #     'min_tempo': tempo * 0.8,
-        #     'max_tempo': tempo * 1.2,
-        #     'target_loudness': loudness,
-        #     'target_danceability': danceability,
-        #     'min_duration_ms': length_min_ms,
-        #     'max_duration_ms': length_max_ms,
-        #     'min_popularity': min_popularity
-        # }
         response = requests.get(url, headers=headers, params=params)
 
         if response.status_code == 200:
@@ -294,12 +278,12 @@ class SpotifyAPI:
             genre_track_count = max(1, round(track_count * (percentage / 100)))
             print(f"[DEBUG] Genre: {genre}, Percentage: {percentage}%, Track Count: {genre_track_count}")
 
-            recent_songs_full = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
-            recent_songs = [song.spotify_id for song in recent_songs_full]
+            recent_songs_from_playlist_with_genre = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
+            recent_songs = [song.spotify_id for song in recent_songs_from_playlist_with_genre]
             print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
 
             genre_id = Genre.objects.get(genre=genre).genre_id
-            songs_filtered_by_genre = [song for song in recent_songs_full if song.genre_id == genre_id]
+            songs_filtered_by_genre = [song for song in recent_songs_from_playlist_with_genre if song.genre_id == genre_id]
             print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
 
             recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
@@ -324,10 +308,24 @@ class SpotifyAPI:
                                 liked_songs.remove(song)
                     print(f"[DEBUG] Liked songs after filtering by recent playlists: {liked_songs}")
 
-                    if len(liked_songs) >= 1:
+                    if len(liked_songs) > 0:
                         seed_track = random.choice(liked_songs)
                         track_seeds = [seed_track]
                         print(f"[DEBUG] Selected seed_track from liked songs: {seed_track}")
+
+                    else:
+                        for playlist in recent_playlists:
+                            playlist_seed = playlist.seed
+                            recently_added_tracks = [song for song in recently_added_tracks if
+                                                     song not in playlist_seed]
+                        if recently_added_tracks:
+                            seed_track = random.choice(recently_added_tracks)
+                            track_seeds = [seed_track]
+                            print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
+                        else:
+                            seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
+                            track_seeds = [seed_track]
+                            print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
 
                 elif recently_added_tracks:
                     for playlist in recent_playlists:
@@ -340,24 +338,29 @@ class SpotifyAPI:
                         seed_track = random.choice(recently_added_tracks)
                         track_seeds = [seed_track]
                         print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
+
+                    else:
+                        seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
+                        track_seeds = [seed_track]
+                        print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
                 else:
                     seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
                     track_seeds = [seed_track]
+
                     print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
 
-                seed_genre = genre
+                seed_genre = None
             else:
                 track_seeds = []
                 seed_genre = genre
                 print(f"[DEBUG] No recent songs found for genre {genre}. Using empty track_seeds.")
 
-            seed_combination = f"{','.join(track_seeds)},{seed_genre}" if track_seeds else seed_genre
-            all_seeds.append(seed_combination)
-            print(f"[DEBUG] Seed combination for genre {genre}: {seed_combination}")
+            current_seed = f"{','.join(track_seeds)}" if track_seeds else seed_genre
+            all_seeds.append(current_seed)
 
             genre_track_ids = self.search_tracks_by_features_v3(
                 access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
-                length_min, length_max, seed_genre, track_seeds, genre_track_count
+                length_min, length_max, track_seeds, genre_track_count, seed_genre
             )
             print(f"[DEBUG] Found {len(genre_track_ids)} tracks for genre {genre}")
 
@@ -380,3 +383,4 @@ class SpotifyAPI:
         print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
 
         self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
+

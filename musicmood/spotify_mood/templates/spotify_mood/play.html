@@ -10,10 +10,14 @@
                 <div class="playlist-info">
                     {% if entry.image_url %}
                         <img src="{{ entry.image_url }}" alt="Playlist Image" class="playlist-img" loading="lazy">
+                    {% else %}
+                        <img src="{% static 'spotify_mood/logo.png' %}" alt="Default Playlist Image" class="playlist-img" loading="lazy">
                     {% endif %}
                     <div class="playlist-details">
                         <h2>{{ entry.playlist.name }}</h2>
-                        <p>Spotify ID: {{ entry.playlist.spotify_id }}</p>
+                        {% if entry.playlist.spotify_id %}
+                            <p>Spotify ID: {{ entry.playlist.spotify_id }}</p>
+                        {% endif %}
                     </div>
                      <div class="player-controls">
                         <i class="bi bi-skip-forward-circle"></i>
@@ -72,6 +76,14 @@
     {% else %}
         <p>Brak playlist do wyświetlenia.</p>
     {% endif %}
+        <button class="btn" type="submit" style="margin-top: 10px" onclick = "refreshPage()">
+            <svg width="220px" height="70px" viewBox="0 0 220 70" class="border rounded">
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
+            </svg>
+            <span>Zapisz zmiany</span>
+        </button>
+</div>
 </div>
 <script>
     let isTrackEnded = false;
@@ -384,6 +396,9 @@
         const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
     });
 
+    function refreshPage() {
+        location.reload();
+    }
 </script>
 
 {% endblock %}

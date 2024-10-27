@@ -201,7 +201,7 @@ def settings_view(request):
         return redirect(reverse('spotify_mood:show_login_page'))
 
     user = get_object_or_404(User, id=user_id)
-
+    playlists = Playlist.objects.order_by('-created_at')
     if request.method == "POST":
         song_time = request.POST.get('song_time')
         genre_preference = request.POST.get('genre_preference')
@@ -229,8 +229,8 @@ def settings_view(request):
         'user': user,
         'settings': settings,
         'preferred_genre': preferred_genre_name,
+        'playlists': playlists,
     })
-
 
 @check_access_token_expired
 def play_view(request):
@@ -249,6 +249,26 @@ def play_view(request):
     spotify_playlists = spotify_api.get_user_playlists(access_token)
 
     liked_songs_set = set(LikedSongs.objects.filter(user=user).values_list('song_id', flat=True))
+
+    liked_songs_data = []
+    liked_songs = LikedSongs.objects.filter(user=user).select_related('song')
+    for liked_song in liked_songs:
+        song = liked_song.song
+        artist_relations = SongArtists.objects.filter(song=song)
+        artists = [artist_relation.artist for artist_relation in artist_relations]
+        track_image = song.photo_url
+        liked_songs_data.append({
+            'song': song,
+            'artists': artists,
+            'image_url': track_image,
+            'liked': True
+        })
+
+    playlist_data = [{
+        'playlist': {'name': 'Polubione utwory', 'spotify_id': None},
+        'songs': liked_songs_data,
+        'image_url': None
+    }]
 
     valid_playlists = []
     for playlist in playlists_in_db:
@@ -278,11 +298,13 @@ def play_view(request):
                     'image_url': image_url
                 })
 
+    # Połącz polubione utwory z resztą playlist
+    playlist_data.extend(valid_playlists)
+
     return render(request, 'spotify_mood/play.html', {
         'user': user,
-        'playlist_data': valid_playlists
+        'playlist_data': playlist_data
     })
-
 
 @check_access_token_expired
 def info_view(request):
@@ -345,3 +367,5 @@ def unlike_song(request, song_id):
         return JsonResponse({'status': 'unliked'})
 
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
