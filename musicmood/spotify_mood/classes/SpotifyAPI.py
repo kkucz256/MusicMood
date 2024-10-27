@@ -101,110 +101,8 @@ class SpotifyAPI:
     def get_available_genres(self):
         return self.db_connector.get_available_genres()
 
-    def search_tracks_by_features(self, access_token, energy, valence, tempo, loudness, danceability, length_min,
-                                  length_max, genres, track_count):
-        headers = {'Authorization': f'Bearer {access_token}'}
-        url = 'https://api.spotify.com/v1/recommendations'
-
-        length_min_ms = length_min * 60 * 1000 if length_min is not None else 0
-        length_max_ms = length_max * 60 * 1000 if length_max is not None else 9999999
-
-        params = {
-            'limit': track_count,
-            'seed_genres': ','.join(genres),
-            'target_energy': energy,
-            'target_valence': valence,
-            'target_tempo': tempo,
-            'target_loudness': loudness,
-            'target_danceability': danceability,
-            'min_duration_ms': length_min_ms,
-            'max_duration_ms': length_max_ms,
-        }
-
-        response = requests.get(url, headers=headers, params=params)
-
-        if response.status_code == 200:
-            tracks = response.json()['tracks']
-            track_ids = [track['id'] for track in tracks]
-
-            return track_ids
-        elif response.status_code == 429:
-            retry_after = int(response.headers.get("Retry-After", 1))
-            print(f"Zbyt wiele zapytań. Ponawianie za {retry_after} sekund.")
-            time.sleep(retry_after)
-            return []
-        else:
-            print(f"Nie udało się znaleźć utworów: {response.status_code} - {response.text}")
-            return []
-
-    def generate_playlist_v2(self, access_token, mood_value, length_min, length_max, genres, genre_percentages,
-                             playlist_name, playlist_description, track_count=10, custom_params=None,
-                             overshoot_factor=1.5):
-        if mood_value is not None:
-            fuzzy = Fuzzy.Fuzzy()
-            params = fuzzy.compute_recommendation(mood_value)
-            fuzzy.print_results(mood_value)
-            fuzzy.print_membership(mood_value)
-
-            target_energy = params['energy']
-            target_valence = params['valence']
-            target_tempo = params['tempo']
-            target_loudness = params['loudness']
-            target_danceability = params['danceability']
-        else:
-            target_energy = custom_params['energy']
-            target_valence = custom_params['valence']
-            target_tempo = custom_params['tempo']
-            target_loudness = custom_params['loudness']
-            target_danceability = custom_params['danceability']
-
-        track_data = []
-
-        user_info = self.get_user_info(access_token)
-        user = self.db_connector.get_user_by_spotify_id(user_info['id'])
-
-        for genre, percentage in zip(genres, genre_percentages):
-            genre_track_count = max(1, round(track_count * (percentage / 100)))
-
-            found_tracks = False
-            filtered_genre_track_ids = set()
-
-            while not found_tracks:
-                expanded_track_count = int(genre_track_count * overshoot_factor)
-                recent_tracks_by_genre = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=2)
-
-                genre_track_ids = self.search_tracks_by_features(
-                    access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
-                    length_min, length_max, [genre], expanded_track_count
-                )
-                new_tracks = [track_id for track_id in genre_track_ids if track_id not in recent_tracks_by_genre]
-                filtered_genre_track_ids.update(new_tracks)
-
-                if len(filtered_genre_track_ids) >= genre_track_count:
-                    found_tracks = True
-                else:
-                    target_energy *= 0.9
-                    target_tempo *= 0.9
-                    overshoot_factor += 0.5
-
-                    if overshoot_factor > 3.0:
-                        break
-
-            track_data.extend((track_id, genre) for track_id in filtered_genre_track_ids)
-
-        if len(track_data) > track_count:
-            track_data = random.sample(track_data, track_count)
-        elif len(track_data) < track_count:
-            print(f"Brakuje {track_count - len(track_data)} utworów po pierwszym przefiltrowaniu.")
-
-        if not track_data:
-            print("Nie znaleziono utworów spełniających kryteria.")
-            return None
-
-        random.shuffle(track_data)
-        self.create_playlist(access_token, playlist_name, track_data, playlist_description, genres)
-
-    def create_playlist(self, access_token, playlist_name, track_data, combined_seeds, playlist_description="", genres=[]):
+    def create_playlist(self, access_token, playlist_name, track_data, combined_seeds, playlist_description="",
+                        genres=[]):
         user_info = self.get_user_info(access_token)
         user_id = user_info['id']
         user = self.db_connector.get_user_by_spotify_id(user_id)
@@ -261,8 +159,57 @@ class SpotifyAPI:
         else:
             print(f"Nie udało się stworzyć playlisty na Spotify: {response.status_code} - {response.text}")
 
+    def get_recently_added_tracks(self, access_token):
+        url = "https://api.spotify.com/v1/me/tracks"
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        params = {
+            'limit': 10
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            print(f"Nie udało się pobrać ostatnich utworów: {response.status_code}")
+            return []
+
+        recent_tracks = [item['track']['id'] for item in response.json()['items']]
+
+        return recent_tracks
+
+    def get_recently_added_tracks_that_match_genre(self, access_token, target_genre, track_ids):
+        headers = {'Authorization': f'Bearer {access_token}'}
+        url = 'https://api.spotify.com/v1/tracks'
+        params = {'ids': ','.join(track_ids)}
+        response = requests.get(url, headers=headers, params=params)
+
+        if response.status_code != 200:
+            print(f"Nie udało się pobrać informacji o utworach: {response.status_code}")
+            return []
+
+        tracks_info = response.json()['tracks']
+        artist_ids = {artist['id'] for track in tracks_info for artist in track['artists']}
+
+        artists_url = 'https://api.spotify.com/v1/artists'
+        artist_response = requests.get(artists_url, headers=headers, params={'ids': ','.join(artist_ids)})
+
+        if artist_response.status_code != 200:
+            print(f"Nie udało się pobrać informacji o artystach: {artist_response.status_code}")
+            return []
+
+        artists_info = artist_response.json()['artists']
+        artist_genres = {artist['id']: artist['genres'] for artist in artists_info}
+        matching_tracks = []
+        for track in tracks_info:
+            for artist in track['artists']:
+                if target_genre.lower() in [genre.lower() for genre in artist_genres.get(artist['id'], [])]:
+                    matching_tracks.append(track['id'])
+                    break
+
+        return matching_tracks
+
     def search_tracks_by_features_v3(self, access_token, energy, valence, tempo, loudness, danceability, length_min,
-                                     length_max, seed_genre, track_seeds, track_count, min_popularity=40):
+                                     length_max, seed_genre, track_seeds, track_count, min_popularity=45):
         headers = {'Authorization': f'Bearer {access_token}'}
         url = 'https://api.spotify.com/v1/recommendations'
 
@@ -282,7 +229,22 @@ class SpotifyAPI:
             'max_duration_ms': length_max_ms,
             'min_popularity': min_popularity
         }
-
+        # params = {
+        #     'limit': track_count,
+        #     'seed_genres': seed_genre,
+        #     'seed_tracks': ','.join(track_seeds),
+        #     'min_energy': energy * 0.8,
+        #     'max_energy': energy * 1.2,
+        #     'min_valence': valence * 0.8,
+        #     'max_valence': valence * 1.2,
+        #     'min_tempo': tempo * 0.8,
+        #     'max_tempo': tempo * 1.2,
+        #     'target_loudness': loudness,
+        #     'target_danceability': danceability,
+        #     'min_duration_ms': length_min_ms,
+        #     'max_duration_ms': length_max_ms,
+        #     'min_popularity': min_popularity
+        # }
         response = requests.get(url, headers=headers, params=params)
 
         if response.status_code == 200:
@@ -311,16 +273,19 @@ class SpotifyAPI:
             target_tempo = params['tempo']
             target_loudness = params['loudness']
             target_danceability = params['danceability']
+            print(f"[DEBUG] Computed fuzzy parameters: {params}")
         else:
             target_energy = custom_params['energy']
             target_valence = custom_params['valence']
             target_tempo = custom_params['tempo']
             target_loudness = custom_params['loudness']
             target_danceability = custom_params['danceability']
+            print(f"[DEBUG] Custom parameters: {custom_params}")
 
         track_data = []
 
         user_info = self.get_user_info(access_token)
+        print(f"[DEBUG] User info: {user_info}")
         user = self.db_connector.get_user_by_spotify_id(user_info['id'])
 
         all_seeds = []
@@ -331,50 +296,69 @@ class SpotifyAPI:
 
             recent_songs_full = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
             recent_songs = [song.spotify_id for song in recent_songs_full]
+            print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
+
             genre_id = Genre.objects.get(genre=genre).genre_id
             songs_filtered_by_genre = [song for song in recent_songs_full if song.genre_id == genre_id]
-            recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
+            print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
 
+            recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
+            print(f"[DEBUG] Recent playlists for genre {genre}: {[playlist.seed for playlist in recent_playlists]}")
+
+            recently_added_tracks = self.get_recently_added_tracks(access_token)
             track_seeds = []
 
             if recent_songs:
                 liked_songs = list(
                     LikedSongs.objects.filter(user=user, song__genre__genre=genre).values_list('song__spotify_id',
                                                                                                flat=True))
+                print(f"[DEBUG] Liked songs for genre {genre}: {liked_songs}")
+                recently_added_tracks = self.get_recently_added_tracks_that_match_genre(access_token, genre,
+                                                                                        recently_added_tracks)
+                print(f"[DEBUG] Recently added songs for genre {genre}: {recently_added_tracks}")
                 if liked_songs:
                     for playlist in recent_playlists:
                         playlist_seed = playlist.seed
-
                         for song in liked_songs[:]:
                             if song in playlist_seed:
                                 liked_songs.remove(song)
+                    print(f"[DEBUG] Liked songs after filtering by recent playlists: {liked_songs}")
 
-                    if len(liked_songs) > 0:
+                    if len(liked_songs) >= 1:
                         seed_track = random.choice(liked_songs)
                         track_seeds = [seed_track]
-                    else:
-                        seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
-                        track_seeds = [seed_track]
+                        print(f"[DEBUG] Selected seed_track from liked songs: {seed_track}")
 
-                    seed_genre = genre
+                elif recently_added_tracks:
+                    for playlist in recent_playlists:
+                        playlist_seed = playlist.seed
+                        for song in recently_added_tracks[:]:
+                            if song in playlist_seed:
+                                recently_added_tracks.remove(song)
+
+                    if len(recently_added_tracks) > 0:
+                        seed_track = random.choice(recently_added_tracks)
+                        track_seeds = [seed_track]
+                        print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
                 else:
                     seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
                     track_seeds = [seed_track]
-                    seed_genre = genre
+                    print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
+
+                seed_genre = genre
             else:
                 track_seeds = []
                 seed_genre = genre
+                print(f"[DEBUG] No recent songs found for genre {genre}. Using empty track_seeds.")
 
             seed_combination = f"{','.join(track_seeds)},{seed_genre}" if track_seeds else seed_genre
             all_seeds.append(seed_combination)
-
             print(f"[DEBUG] Seed combination for genre {genre}: {seed_combination}")
 
             genre_track_ids = self.search_tracks_by_features_v3(
                 access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
                 length_min, length_max, seed_genre, track_seeds, genre_track_count
             )
-
             print(f"[DEBUG] Found {len(genre_track_ids)} tracks for genre {genre}")
 
             track_data.extend((track_id, genre) for track_id in genre_track_ids)
@@ -383,6 +367,7 @@ class SpotifyAPI:
 
         if len(track_data) > track_count:
             track_data = random.sample(track_data, track_count)
+            print(f"[DEBUG] Track data after sampling to match track_count: {track_data}")
         elif len(track_data) < track_count:
             print(f"[DEBUG] Missing {track_count - len(track_data)} tracks after filtering.")
 
@@ -391,13 +376,7 @@ class SpotifyAPI:
             return None
 
         random.shuffle(track_data)
-
         combined_seeds = ";".join(all_seeds)
-
         print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
 
         self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
-
-
-
-

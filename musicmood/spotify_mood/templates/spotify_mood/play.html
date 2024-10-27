@@ -74,6 +74,7 @@
     {% endif %}
 </div>
 <script>
+    let isTrackEnded = false;
 
     function toggleSongs(playlistId) {
         const songDiv = document.getElementById('songs-' + playlistId);
@@ -140,6 +141,26 @@
 
         player.addListener('not_ready', ({ device_id }) => {
             console.log('ID urządzenia jest niedostępne:', device_id);
+        });
+
+        player.addListener('player_state_changed', (state) => {
+            console.log('Listener player_state_changed wywołany:', state);
+
+            if (!state) {
+                console.warn('Brak stanu (state) odtwarzacza!');
+                return;
+            }
+
+            const { paused, position, duration } = state;
+            console.log(`Stan odtwarzacza: paused=${paused}, position=${position}, duration=${duration}`);
+
+            if (!isTrackEnded && paused && position === 0 && duration > 1000) {
+                console.log("Utwór zakończony, przechodzę do następnego...");
+                isTrackEnded = true;
+                nextTrack();
+            } else {
+                console.log("Utwór jeszcze trwa lub jest wstrzymany ręcznie, czekamy...");
+            }
         });
 
         player.connect();
@@ -226,6 +247,8 @@
             if (!resume) {
                 lastPositionMs = 0;
             }
+
+            isTrackEnded = false;
 
             if (lastTrackElement) {
                 lastTrackElement.querySelector('.song-title').style.color = '';
