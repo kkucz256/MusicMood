@@ -148,12 +148,22 @@ class Language(models.Model):
         db_table = 'language'
 
 
+class LikedSongs(models.Model):
+    user = models.ForeignKey('User', models.DO_NOTHING)
+    song = models.ForeignKey('Song', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'liked_songs'
+
+
 class Playlist(models.Model):
     user = models.ForeignKey('User', models.DO_NOTHING)
     name = models.CharField(max_length=45)
     photo = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField()
     spotify_id = models.CharField(max_length=45)
+    seed = models.CharField(max_length=255)
 
     class Meta:
         managed = False
@@ -203,6 +213,8 @@ class Song(models.Model):
     spotify_id = models.CharField(unique=True, max_length=45)
     title = models.CharField(max_length=100)
     duration = models.IntegerField()
+    genre = models.ForeignKey(Genre, models.DO_NOTHING)
+    photo_url = models.CharField(max_length=255)
 
     class Meta:
         managed = False

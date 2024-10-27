@@ -49,6 +49,17 @@
                                             {% endfor %}
                                         </span>
                                     </div>
+                                    <div class="like-button">
+                                        {% if item.liked %}
+                                            <i class="custom-heart bi bi-suit-heart-fill"
+                                               style="color: var(--wiodący);"
+                                               onclick="toggleLike(this, '{{ item.song.id }}')"></i>
+                                        {% else %}
+                                            <i class="custom-heart-empty bi bi-suit-heart"
+                                               style="color: white;"
+                                               onclick="toggleLike(this, '{{ item.song.id }}')"></i>
+                                        {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
@@ -320,6 +331,36 @@
             element.textContent = '- Odtwarzanie' + '.'.repeat(dotCount);
         }, 500);
     }
+    async function toggleLike(element, songId) {
+        const isLiked = element.classList.contains('bi-suit-heart-fill');
+        const url = isLiked ? `/unlike_song/${songId}/` : `/like_song/${songId}/`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            });
+
+            if (response.ok) {
+                element.classList.toggle('bi-suit-heart');
+                element.classList.toggle('bi-suit-heart-fill');
+                element.style.color = isLiked ? 'white' : 'var(--wiodący)';
+            } else {
+                console.error('Błąd podczas aktualizacji polubienia:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Błąd połączenia:', error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+    });
+
 </script>
 
 {% endblock %}

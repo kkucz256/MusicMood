@@ -109,6 +109,27 @@
 }
 
 
+.custom-heart-empty,
+.custom-heart {
+    display: inline-block;
+}
+
+
+.custom-heart:hover {
+    color:var(--tekst) !important;
+    transform: scale(1.1) !important;
+    transform-origin: center center;
+    cursor: pointer !important;
+    transition: transform 0.1s ease-in-out;
+}
+
+.custom-heart-empty:hover {
+    color:var(--wiodący) !important;
+    transform: scale(1.1) !important;
+    transform-origin: center center;
+    cursor: pointer !important;
+    transition: transform 0.1s ease-in-out;
+}
 
 
 

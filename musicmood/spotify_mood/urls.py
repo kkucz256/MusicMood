@@ -14,5 +14,7 @@ urlpatterns = [
     path('info/', views.info_view, name='info'),
     path('search_genres/', views.search_genres, name='search_genres'),
     path('search_artists/', views.search_artists, name='search_artists'),
+    path('like_song/<int:song_id>/', views.like_song, name='like_song'),
+    path('unlike_song/<int:song_id>/', views.unlike_song, name='unlike_song'),
 ]
 

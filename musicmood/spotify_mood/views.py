@@ -2,10 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.urls import reverse
 from django.core.cache import cache
+from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 from urllib.parse import urlencode
 from django.utils import timezone
-from .models import User, PreferredGenre, Settings, Playlist, SongsPlaylist, SongArtists
+from .models import User, PreferredGenre, Settings, Playlist, SongsPlaylist, SongArtists, Song, LikedSongs
 from .models import Genre
 from django.http import JsonResponse
 from requests.exceptions import HTTPError
@@ -169,7 +170,7 @@ def home_view(request):
             custom_params = None
 
         spotify_api = SpotifyAPI()
-        spotify_api.generate_playlist_v2(
+        spotify_api.generate_playlist_v3(
             access_token,
             mood_value,
             length_min,
@@ -242,46 +243,40 @@ def play_view(request):
         return redirect(reverse('spotify_mood:show_login_page'))
 
     user = User.objects.get(id=user_id)
+    playlists_in_db = Playlist.objects.filter(user=user).order_by('-created_at')
 
-    cache_key = f"user_playlists_{user_id}"
-    valid_playlists = cache.get(cache_key)
+    spotify_api = SpotifyAPI()
+    spotify_playlists = spotify_api.get_user_playlists(access_token)
 
-    if not valid_playlists:
-        playlists_in_db = Playlist.objects.filter(user=user).order_by('-created_at')
+    liked_songs_set = set(LikedSongs.objects.filter(user=user).values_list('song_id', flat=True))
 
-        spotify_api = SpotifyAPI()
-        spotify_playlists = spotify_api.get_user_playlists(access_token)
+    valid_playlists = []
+    for playlist in playlists_in_db:
+        for spotify_playlist in spotify_playlists:
+            if playlist.spotify_id == spotify_playlist['id']:
+                songs_relations = SongsPlaylist.objects.filter(playlist=playlist)
+                songs = []
+                for relation in songs_relations:
+                    song = relation.song
+                    artist_relations = SongArtists.objects.filter(song=song)
+                    artists = [artist_relation.artist for artist_relation in artist_relations]
+                    track_image = song.photo_url
+                    is_liked = song.id in liked_songs_set
 
-        valid_playlists = []
-        for playlist in playlists_in_db:
-            for spotify_playlist in spotify_playlists:
-                if playlist.spotify_id == spotify_playlist['id']:
-                    songs_relations = SongsPlaylist.objects.filter(playlist=playlist)
-                    songs = []
-                    for relation in songs_relations:
-                        song = relation.song
-                        artist_relations = SongArtists.objects.filter(song=song)
-                        artists = [artist_relation.artist for artist_relation in artist_relations]
-
-                        track_info = spotify_api.get_track_info(access_token, song.spotify_id)
-                        track_image = track_info['album']['images'][0]['url'] if track_info.get('album') and track_info[
-                            'album'].get('images') and len(track_info['album']['images']) > 0 else None
-
-                        songs.append({
-                            'song': song,
-                            'artists': artists,
-                            'image_url': track_image
-                        })
-
-                    image_url = spotify_playlist['images'][0]['url'] if spotify_playlist.get('images') and len(
-                        spotify_playlist['images']) > 0 else None
-                    valid_playlists.append({
-                        'playlist': playlist,
-                        'songs': songs,
-                        'image_url': image_url
+                    songs.append({
+                        'song': song,
+                        'artists': artists,
+                        'image_url': track_image,
+                        'liked': is_liked
                     })
 
-        cache.set(cache_key, valid_playlists, timeout=300)
+                image_url = spotify_playlist['images'][0]['url'] if spotify_playlist.get('images') and len(
+                    spotify_playlist['images']) > 0 else None
+                valid_playlists.append({
+                    'playlist': playlist,
+                    'songs': songs,
+                    'image_url': image_url
+                })
 
     return render(request, 'spotify_mood/play.html', {
         'user': user,
@@ -324,3 +319,29 @@ def search_artists(request):
     artists = spotify_api.search_artists_by_genre(access_token, query)
 
     return JsonResponse({'artists': artists})
+
+@csrf_exempt
+def like_song(request, song_id):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        user = User.objects.get(id=user_id)
+        song = Song.objects.get(id=song_id)
+
+        LikedSongs.objects.get_or_create(user=user, song=song)
+
+        return JsonResponse({'status': 'liked'})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
+def unlike_song(request, song_id):
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        user = User.objects.get(id=user_id)
+        song = Song.objects.get(id=song_id)
+
+        LikedSongs.objects.filter(user=user, song=song).delete()
+
+        return JsonResponse({'status': 'unliked'})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
