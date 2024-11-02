@@ -1,8 +1,8 @@
 {% extends 'navbar.html' %}
 {% load static %}
 {% block navbar %}
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin-top: 7%;">
-    <h1 class = "custom-h1">Playlisty użytkownika {{user.name}} stworzone za pomocą aplikacji</h1>
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh;">
+    <h1 class = "custom-h1" id="play_h1">Playlisty użytkownika {{user.name}} stworzone za pomocą aplikacji</h1>
 
     {% if playlist_data %}
         {% for entry in playlist_data %}
@@ -169,7 +169,7 @@
             if (!isTrackEnded && paused && position === 0 && duration > 1000) {
                 console.log("Utwór zakończony, przechodzę do następnego...");
                 isTrackEnded = true;
-                nextTrack();
+                setTimeout(() => nextTrack(), 500);
             } else {
                 console.log("Utwór jeszcze trwa lub jest wstrzymany ręcznie, czekamy...");
             }

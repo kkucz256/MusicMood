@@ -123,14 +123,14 @@ def home_view(request):
 
     mood_map = {
         '2_szczęśliwy': 1,
-        '1_szczęśliwy': 0.75,
-        '0_szczęśliwy': 0.625,
+        '1_szczęśliwy': 0.8,
+        '0_szczęśliwy': 0.733,
         '2_smutny': 0,
-        '1_smutny': 0.25,
-        '0_smutny': 0.375,
-        '2_spokojny': 0.625,
+        '1_smutny': 0.2,
+        '0_smutny': 0.266,
+        '2_spokojny': 0.666,
         '1_spokojny': 0.5,
-        '0_spokojny': 0.375,
+        '0_spokojny': 0.333,
         'własny': None
     }
 
@@ -142,6 +142,9 @@ def home_view(request):
         mood = request.POST.get('mood')
         mood_intensity = request.POST.get('intensity')
         length_choice = request.POST.get('length')
+        print(length_choice)
+        tolerance_choice = request.POST.get('tolerance')
+        print(tolerance_choice)
 
         genres = request.POST.get('selected_genres').split(',')
         genre_percentages = list(map(int, request.POST.get('genre_percentages').split(',')))
@@ -150,7 +153,12 @@ def home_view(request):
         playlist_description = request.POST.get('playlist_description', '')
         track_count = int(request.POST.get('track_count', 10))
 
-        length_min, length_max = eval(length_choice)
+        if not tolerance_choice == 0:
+            length_min = int(length_choice[1]) * (100 - int(tolerance_choice)) / 100
+            length_max = int(length_choice[3]) * (100 + int(tolerance_choice)) / 100
+            print(length_min, length_max)
+        else:
+            length_min, length_max = eval(length_choice)
 
         mood_key = f"{mood_intensity}_{mood}" if mood != "własny" else "własny"
         mood_value = mood_map.get(mood_key)
@@ -170,7 +178,13 @@ def home_view(request):
             custom_params = None
 
         spotify_api = SpotifyAPI()
-        spotify_api.generate_playlist_v3(
+
+        if not spotify_api.is_user_logged_in(access_token):
+            params = urlencode({'message': 'Token expired'})
+            url = f"{reverse('spotify_mood:show_login_page')}?{params}"
+            return redirect(url)
+
+        message = spotify_api.generate_playlist_v3(
             access_token,
             mood_value,
             length_min,
@@ -239,6 +253,7 @@ def play_view(request):
         return redirect(reverse('spotify_mood:show_login_page'))
 
     access_token = request.session.get('access_token')
+
     if not access_token:
         return redirect(reverse('spotify_mood:show_login_page'))
 
@@ -247,6 +262,11 @@ def play_view(request):
 
     spotify_api = SpotifyAPI()
     spotify_playlists = spotify_api.get_user_playlists(access_token)
+
+    if not spotify_api.is_user_logged_in(access_token):
+        params = urlencode({'message': 'Token expired'})
+        url = f"{reverse('spotify_mood:show_login_page')}?{params}"
+        return redirect(url)
 
     liked_songs_set = set(LikedSongs.objects.filter(user=user).values_list('song_id', flat=True))
 

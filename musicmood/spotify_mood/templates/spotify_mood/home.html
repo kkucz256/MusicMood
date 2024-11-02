@@ -3,19 +3,17 @@
 {% block navbar %}
 <form method="POST" action="{% url 'spotify_mood:home' %}" style="padding: 20px;" onsubmit="return validateForm()">
     {% csrf_token %}
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin-top: 5%;">
-        <h1 class = "custom-h1">Cześć {{user.name}}!</h1>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh;">
+        <h1 id="homeh1" class = "custom-h1">Cześć {{user.name}}!</h1>
         <div class="home_div">
             <h1>Wybierz swój nastrój:</h1>
-            <div style="position: relative; width: 500px;">
-                <input type="text" id="moodInput" name="mood" placeholder="Wybierz nastrój" readonly
-                       style="width: 100%; padding: 8px;">
+            <div id="mooddiv" style="position: relative;">
+                <input type="text" id="moodInput" name="mood" placeholder="Wybierz nastrój" readonly>
                 <button type="button" id="moodDropdownButton" onclick="toggleMoodDropdown()"
                         style="position: absolute; right: 0; top: 0; height: 100%; background: none; border: none; cursor: pointer;">
                     &#9660;
                 </button>
-                <ul id="moodDropdown"
-                    style="display: none; position: absolute; width: 100%; max-height: 150px; overflow-y: auto; border: 1px solid #ccc; background-color: white; z-index: 1000;">
+                <ul id="moodDropdown">
                     {% for mood in moods %}
                     <li style="padding: 8px; cursor: pointer;" onclick="selectMood('{{ mood }}')">{{ mood }}</li>
                     {% endfor %}
@@ -42,7 +40,7 @@
                     <input type="range" id="energy" name="energy" min="0" max="1" value="0.5" step="0.01">
                 </div>
                 <div class="slider-container">
-                    <h3>Tempo: <span id="tempoValue">100</span></h3>
+                    <h3>Tempo: <span id="tempoValue">100</span> BPM</h3>
                     <input type="range" id="tempo" name="tempo" min="60" max="200" value="130" step="1">
                 </div>
                 <div class="slider-container">
@@ -63,6 +61,7 @@
 
         <div class="home_div">
             <h1>Wybierz preferowaną długość utworu:</h1>
+            <div id="radio_div">
             <label>
                 <input type="radio" name="length" value="(0,2)" {%if settings and settings.song_time == "(0,2)"%}checked{%endif%}> 0-2 min
             </label>
@@ -75,6 +74,11 @@
             <label>
                 <input type="radio" name="length" value="(4,None)" {%if settings and settings.song_time == "(4,None)"%}checked{%endif%}> 4+ min
             </label>
+            <label id="tolerance_label">  <label for="tolerance"> Procentowa tolerancja: <span id="toleranceValue">0</span> %</label>
+                <input type="range" id="tolerance" name="tolerance" min="0" max="30" value="0"
+                           step="1" style="margin-top: 10px">
+            </label>
+                </div>
         </div>
 
         <div class="home_div">
@@ -83,7 +87,7 @@
                 Łączna zawartość procentowa gatunków musi wynosić 100
             </div>
 
-            <div style="position: relative; width: 500px;">
+            <div id="genre_div" style="position:relative;">
                 <input type="text" id="genreSearch" placeholder="Wpisz nazwę gatunku..." onkeyup="searchGenres()" style="width: 100%; padding: 8px;">
                 <ul id="genreSuggestions" style="display: none;"></ul>
             </div>
@@ -97,16 +101,15 @@
         <div class="home_div">
             <h1>Ustawienia playlisty:</h1>
 
-            <div style="display: flex; align-items: flex-start; margin-bottom: 20px;">
-                <div style="margin-right: 10%; ">
+            <div id="playlist_container">
+                <div id="playlist_name_div">
                     <label for="playlist_name">Nazwa playlisty</label><br>
                     <input type="text" id="playlist_name" name="playlist_name" maxlength="45"
                            placeholder="Wprowadź nazwę" style="width: 200px;">
                 </div>
                 <div>
                     <label for="track_count">Ilość utworów</label><br>
-                    <input type="number" id="track_count" name="track_count" min="20" step="5" max="50" value="20"
-                           style="width: 80px;">
+                    <input type="number" id="track_count" name="track_count" min="20" step="5" max="50" value="20">
                 </div>
             </div>
 
@@ -118,7 +121,7 @@
         </div>
 
         <button class="btn" type="submit" style="margin-top: 10px">
-            <svg width="220px" height="70px" viewBox="0 0 220 70" class="border rounded">
+            <svg width="240px" height="70px" viewBox="0 0 220 70" style="border: 1px solid var(--detal); border-radius: 4px;">
                 <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
                 <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
             </svg>

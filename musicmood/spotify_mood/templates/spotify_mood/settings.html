@@ -3,7 +3,7 @@
 {% block navbar %}
 <div class="center-container">
     <div class="settings-wrapper">
-        <h1 class = "custom-h1">Ustawienia</h1>
+        <h1 id="settingsh1" class = "custom-h1">Ustawienia</h1>
         <h5>Tutaj możesz zapisać swoje preferencje do generowania playlist w celu przyspieszenia procesu:</h5>
         <div class="settings_div">
             <form method="POST" action="{% url 'spotify_mood:settings' %}" onsubmit="return validateGenre()">

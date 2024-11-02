@@ -65,23 +65,23 @@ html::-webkit-scrollbar {
 }
 
 
-input[type="radio"] {
+input[type="radio"], input[type="checkbox"] {
     appearance: none;
     vertical-align: center;
     width: 16px;
     height: 16px;
-    border: 2px solid var(--tekst);
+    border: 2px solid var(--detal);
     border-radius: 50%;
     background-color: var(--ciemniejszy-szary);
     cursor: pointer;
 }
 
-input[type="radio"]:checked {
+input[type="radio"]:checked, input[type="checkbox"]:checked {
     background-color: var(--wiodący);
     border-color: var(--ciemny-wiodący);
 }
 
-input[type="radio"]:checked::before {
+input[type="radio"]:checked::before, input[type="checkbox"]:checked::before {
     content: '';
     display: block;
     width: 12px;
@@ -91,7 +91,7 @@ input[type="radio"]:checked::before {
     margin: auto;
 }
 
-input[type="radio"]:hover {
+input[type="radio"]:hover, input[type="checkbox"]:hover {
     transform: scale(1.5);
     background-color: var(--wiodący);
 
@@ -111,7 +111,7 @@ input[type="range"] {
     appearance: none;
     width: 80%;
     height: 8px;
-    background: linear-gradient(to right, var(--wiodący) 0%, var(--wiodący) var(--val), var(--tekst) var(--val), var(--tekst) 100%);
+    background: linear-gradient(to right, var(--wiodący) 0%, var(--wiodący) var(--val), var(--detal) var(--val), var(--detal) 100%);
     border-radius: 5px;
     outline: none;
     margin-bottom: 10px;
@@ -167,8 +167,53 @@ input[type="range"]:focus {
     border-radius: 8px;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
+
 #custom_navbar{
     background-color: var(--najciemniejszy_bez_cienia);
     border-bottom: 2px solid var(--wiodący);
     z-index: 1000;
 }
+.navbar-icon{
+    color:var(--detal) !important;
+}
+
+.navbar-icon:hover{
+    color:var(--wiodący) !important;
+    transform: scale(1.1) !important;
+    transform-origin: center center;
+    cursor: pointer !important;
+    transition: transform 0.1s ease-in-out;
+}
+
+.navbar-toggler {
+    border: 2px solid var(--detal);
+    background-color: transparent;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.navbar-toggle{
+    color:var(--detal);
+}
+@media (max-width: 576px) {
+    .navbar-collapse {
+        justify-content: center;
+    }
+
+    .navbar-nav.mobile-horizontal {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .nav-link {
+        padding: 0;
+        margin: 5px;
+    }
+
+    .navbar-nav .theme-toggle-wrapper {
+        display: flex;
+        align-items: center;
+    }
+}
+

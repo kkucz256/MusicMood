@@ -14,14 +14,14 @@
 <body>
 <div class="container-sm d-flex flex-column align-items-center justify-content-center" style="min-height: 100vh;">
     <div class='login-container'>
-        <img src="{% static 'spotify_mood/logo.png' %}" alt="my img" width="300" height="300">
+        <img src="{% static 'spotify_mood/logo.png' %}" alt="my img" width="60%" height="auto">
         <h1 class="fancy">MusicMood</h1>
         <h3>Aplikacja do pracy inżynierskiej - Krzysztof Kucz</h3>
 
         <form action="{% url 'spotify_mood:log_in' %}" method="post" class="d-flex justify-content-center">
             {% csrf_token %}
             <button class="btn" type="submit">
-                <svg width="220px" height="70px" viewBox="0 0 220 70" class="border rounded">
+                <svg width="220px" height="70px" viewBox="0 0 220 70" style="border: 1px solid var(--detal); border-radius: 4px;">
                     <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
                     <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
                 </svg>
@@ -31,7 +31,8 @@
     </div>
 </div>
 <script>
-    var message = "{{ message|escapejs }}";
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get('message');
 
     if (message === "Token expired") {
         alert("Token dostępu wygasł (minęło 1h). Zaloguj się ponownie");

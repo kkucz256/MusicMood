@@ -211,7 +211,7 @@ class Settings(models.Model):
 
 class Song(models.Model):
     spotify_id = models.CharField(unique=True, max_length=45)
-    title = models.CharField(max_length=100)
+    title = models.CharField(max_length=255)
     duration = models.IntegerField()
     genre = models.ForeignKey(Genre, models.DO_NOTHING)
     photo_url = models.CharField(max_length=255)
