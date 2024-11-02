@@ -196,6 +196,9 @@ def home_view(request):
             track_count,
             custom_params
         )
+        request.session['status'] = message["status"]
+        request.session['message'] = message["message"]
+
         cache_key = f"user_playlists_{user_id}"
         cache.delete(cache_key)
         return redirect(reverse('spotify_mood:play'))
@@ -256,6 +259,9 @@ def play_view(request):
 
     if not access_token:
         return redirect(reverse('spotify_mood:show_login_page'))
+
+    status = request.session.pop('status', None)
+    message = request.session.pop('message', None)
 
     user = User.objects.get(id=user_id)
     playlists_in_db = Playlist.objects.filter(user=user).order_by('-created_at')
@@ -318,12 +324,13 @@ def play_view(request):
                     'image_url': image_url
                 })
 
-    # Połącz polubione utwory z resztą playlist
     playlist_data.extend(valid_playlists)
 
     return render(request, 'spotify_mood/play.html', {
         'user': user,
-        'playlist_data': playlist_data
+        'playlist_data': playlist_data,
+        'status': status,
+        'message': message
     })
 
 @check_access_token_expired

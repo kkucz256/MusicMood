@@ -84,8 +84,15 @@
             <span>Zapisz zmiany</span>
         </button>
 </div>
-</div>
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const status = "{{ status|default_if_none:''|escapejs }}";
+        const message = "{{ message|default_if_none:''|escapejs }}";
+
+        if (status && message && status !== 'None' && message !== 'None') {
+            alert(`${status.toUpperCase()}: ${message}`);
+        }
+    });
     let isTrackEnded = false;
 
     function toggleSongs(playlistId) {

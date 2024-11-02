@@ -99,6 +99,7 @@
 
 
         <div class="home_div">
+
             <h1>Ustawienia playlisty:</h1>
 
             <div id="playlist_container">
@@ -131,7 +132,7 @@
         <div id="loadingModal">
             <div id="modalContents">
                 <h2 id="loadingText">Tworzenie playlisty</h2>
-                <p>Proszę czekać na przekierowanie.</p>
+                <p>Proszę czekać na informację.</p>
             </div>
         </div>
 
@@ -342,7 +343,6 @@
             genreSuggestions.style.display = 'none';
         }
     });
-
     function showLoadingModal() {
         const modal = document.getElementById('loadingModal');
         const loadingText = document.getElementById('loadingText');
@@ -355,7 +355,6 @@
             let dots = '.'.repeat(dotCount);
             loadingText.textContent = `Tworzenie playlisty${dots}`;
         }, 500);
-
 
         modal.dataset.loadingInterval = loadingInterval;
     }
