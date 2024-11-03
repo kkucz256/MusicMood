@@ -37,6 +37,18 @@
     if (message === "Token expired") {
         alert("Token dostępu wygasł (minęło 1h). Zaloguj się ponownie");
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            if (currentTheme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            } else {
+                document.documentElement.classList.remove('dark-theme');
+            }
+        }
+    });
 </script>
 </body>
 </html>

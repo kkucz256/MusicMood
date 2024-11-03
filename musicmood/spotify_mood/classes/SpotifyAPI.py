@@ -16,8 +16,8 @@ from ..models import LikedSongs, Playlist, Genre
 
 class SpotifyAPI:
     CLIENT_ID = 'd596c03aba8648328d29072f30f046bc'
-    REDIRECT_URI = 'http://127.0.0.1:8000/callback'
-    # REDIRECT_URI = 'http://192.168.0.81:8000/callback'
+    # REDIRECT_URI = 'http://127.0.0.1:8000/callback'
+    REDIRECT_URI = 'http://192.168.0.81:8000/callback'
     SCOPE = 'user-read-private user-read-email user-library-read user-library-modify playlist-read-private playlist-modify-public playlist-modify-private streaming user-read-playback-state user-modify-playback-state'
     AUTH_URL = 'https://accounts.spotify.com/authorize'
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
@@ -225,7 +225,7 @@ class SpotifyAPI:
         return matching_tracks
 
     def search_tracks_by_features_v3(self, access_token, energy, valence, tempo, loudness, danceability, length_min,
-                                     length_max, track_seeds, track_count, seed_genre, min_popularity=50):
+                                     length_max, track_seeds, track_count, seed_genre, min_popularity=40):
         headers = {'Authorization': f'Bearer {access_token}'}
         url = 'https://api.spotify.com/v1/recommendations'
 
@@ -245,6 +245,7 @@ class SpotifyAPI:
             'max_duration_ms': length_max_ms,
             'min_popularity': min_popularity
         }
+        print(params)
         response = requests.get(url, headers=headers, params=params)
 
         if response.status_code == 200:
@@ -261,7 +262,7 @@ class SpotifyAPI:
             return []
 
     def generate_playlist_v3(self, access_token, mood_value, length_min, length_max, genres, genre_percentages,
-                             playlist_name, playlist_description, track_count=10, custom_params=None):
+                             playlist_name, playlist_description, track_count=10, custom_params=None, selected_song_ids=None):
         local_time = datetime.datetime.now().hour + datetime.datetime.now().minute / 60
         time_of_the_day = round(local_time, 2)
         # print(f"[DEBUG] Local time as float (time_of_the_day): {time_of_the_day}")
@@ -290,136 +291,218 @@ class SpotifyAPI:
         user_info = self.get_user_info(access_token)
         # print(f"[DEBUG] User info: {user_info}")
         user = self.db_connector.get_user_by_spotify_id(user_info['id'])
-
+        print(selected_song_ids)
         all_seeds = []
 
-        for genre, percentage in zip(genres, genre_percentages):
-            genre_track_count = max(1, round(track_count * (percentage / 100)))
-            # print(f"[DEBUG] Genre: {genre}, Percentage: {percentage}%, Track Count: {genre_track_count}")
-
+        if selected_song_ids:
+            genre = genres[0]
             recent_songs_from_playlist_with_genre = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
             recent_songs = [song.spotify_id for song in recent_songs_from_playlist_with_genre]
-            # print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
-
-            genre_id = Genre.objects.get(genre=genre).genre_id
-            songs_filtered_by_genre = [song for song in recent_songs_from_playlist_with_genre if
-                                       song.genre_id == genre_id]
-            # print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
-
-            recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
-            # print(f"[DEBUG] Recent playlists for genre {genre}: {[playlist.seed for playlist in recent_playlists]}")
-
-            recently_added_tracks = self.get_recently_added_tracks(access_token)
-            track_seeds = []
-
             if recent_songs:
-                liked_songs = list(
-                    LikedSongs.objects.filter(user=user, song__genre__genre=genre).values_list('song__spotify_id',
-                                                                                               flat=True))
-                # print(f"[DEBUG] Liked songs for genre {genre}: {liked_songs}")
-                recently_added_tracks = self.get_recently_added_tracks_that_match_genre(access_token, genre,
-                                                                                        recently_added_tracks)
-                # print(f"[DEBUG] Recently added songs for genre {genre}: {recently_added_tracks}")
-                if liked_songs:
-                    for playlist in recent_playlists:
-                        playlist_seed = playlist.seed
-                        for song in liked_songs[:]:
-                            if song in playlist_seed:
-                                liked_songs.remove(song)
-                    # print(f"[DEBUG] Liked songs after filtering by recent playlists: {liked_songs}")
+                choice = random.choice(recent_songs)
+                selected_song_ids.append(choice)
+                print(f"gatunek {genre} już istnieje w bazie, filtruję po nim i losuję utwór {choice}")
+                genre = None
+            else:
+                all_seeds.append(genre)
 
-                    if len(liked_songs) > 0:
-                        seed_track = random.choice(liked_songs)
-                        track_seeds = [seed_track]
-                        # print(f"[DEBUG] Selected seed_track from liked songs: {seed_track}")
+            found_tracks = self.search_tracks_by_features_v3(
+                access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
+                length_min, length_max, track_seeds=selected_song_ids, track_count=track_count, seed_genre=genre
+            )
 
-                    else:
+            genre = genres[0]
+            track_data.extend((track_id, genre) for track_id in found_tracks)
+            all_seeds.extend(selected_song_ids)
+
+            print(all_seeds)
+            if not track_data:
+                print("[DEBUG] No tracks found matching the criteria.")
+                return {
+                    "status": "error",
+                    "message": "No tracks found matching the given criteria. Playlist generation failed."
+                }
+            elif len(track_data) < track_count:
+                missing_tracks = track_count - len(track_data)
+                print(f"[DEBUG] Missing {missing_tracks} tracks after filtering.")
+                random.shuffle(track_data)
+                combined_seeds = ";".join(all_seeds)
+                print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
+                self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
+                return {
+                    "status": "warning",
+                    "message": f"Playlista posiada mniej utworów niż zostało wpisane. Brakuje {missing_tracks} utworów, "
+                               f"w celu polepszenia algorytmu spróbuj ponownie wygenerować playlistę,"
+                               f"zmienić parametry systemu, bądź dodać kilka utworów do polubionych.",
+                    "track_count": len(track_data)
+                }
+            else:
+                combined_seeds = ";".join(all_seeds)
+                self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
+                return {
+                    "status": "success",
+                    "message": "Udało się stworzyć playlistę!",
+                    "track_count": len(track_data)
+                }
+
+        else:
+            for genre, percentage in zip(genres, genre_percentages):
+                genre_track_count = max(1, round(track_count * (percentage / 100)))
+                # print(f"[DEBUG] Genre: {genre}, Percentage: {percentage}%, Track Count: {genre_track_count}")
+
+                recent_songs_from_playlist_with_genre = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
+                recent_songs = [song.spotify_id for song in recent_songs_from_playlist_with_genre]
+                # print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
+
+                genre_id = Genre.objects.get(genre=genre).genre_id
+                songs_filtered_by_genre = [song for song in recent_songs_from_playlist_with_genre if
+                                           song.genre_id == genre_id]
+                # print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
+
+                recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
+                # print(f"[DEBUG] Recent playlists for genre {genre}: {[playlist.seed for playlist in recent_playlists]}")
+
+                recently_added_tracks = self.get_recently_added_tracks(access_token)
+                track_seeds = []
+
+                if recent_songs:
+                    liked_songs = list(
+                        LikedSongs.objects.filter(user=user, song__genre__genre=genre).values_list('song__spotify_id',
+                                                                                                   flat=True))
+                    # print(f"[DEBUG] Liked songs for genre {genre}: {liked_songs}")
+                    recently_added_tracks = self.get_recently_added_tracks_that_match_genre(access_token, genre,
+                                                                                            recently_added_tracks)
+                    # print(f"[DEBUG] Recently added songs for genre {genre}: {recently_added_tracks}")
+                    if liked_songs:
                         for playlist in recent_playlists:
                             playlist_seed = playlist.seed
-                            recently_added_tracks = [song for song in recently_added_tracks if
-                                                     song not in playlist_seed]
+                            for song in liked_songs[:]:
+                                if song in playlist_seed:
+                                    liked_songs.remove(song)
+                        # print(f"[DEBUG] Liked songs after filtering by recent playlists: {liked_songs}")
+
+                        if len(liked_songs) > 0:
+                            seed_track = random.choice(liked_songs)
+                            track_seeds = [seed_track]
+                            # print(f"[DEBUG] Selected seed_track from liked songs: {seed_track}")
+
+                        else:
+                            for playlist in recent_playlists:
+                                playlist_seed = playlist.seed
+                                recently_added_tracks = [song for song in recently_added_tracks if
+                                                         song not in playlist_seed]
+                            if len(recently_added_tracks) > 0:
+                                seed_track = random.choice(recently_added_tracks)
+                                track_seeds = [seed_track]
+                                # print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
+                            else:
+                                seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
+                                track_seeds = [seed_track]
+                                # print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
+
+                    elif recently_added_tracks:
+                        for playlist in recent_playlists:
+                            playlist_seed = playlist.seed
+                            for song in recently_added_tracks[:]:
+                                if song in playlist_seed:
+                                    recently_added_tracks.remove(song)
+
                         if len(recently_added_tracks) > 0:
                             seed_track = random.choice(recently_added_tracks)
                             track_seeds = [seed_track]
                             # print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
+
                         else:
                             seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
                             track_seeds = [seed_track]
                             # print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
-
-                elif recently_added_tracks:
-                    for playlist in recent_playlists:
-                        playlist_seed = playlist.seed
-                        for song in recently_added_tracks[:]:
-                            if song in playlist_seed:
-                                recently_added_tracks.remove(song)
-
-                    if len(recently_added_tracks) > 0:
-                        seed_track = random.choice(recently_added_tracks)
-                        track_seeds = [seed_track]
-                        # print(f"[DEBUG] Selected seed_track from recent tracks: {seed_track}")
-
-                    else:
+                    elif len(songs_filtered_by_genre) > 0:
                         seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
                         track_seeds = [seed_track]
+
                         # print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
-                elif len(songs_filtered_by_genre) > 0:
-                    seed_track = random.choice([song.spotify_id for song in songs_filtered_by_genre])
-                    track_seeds = [seed_track]
 
-                    # print(f"[DEBUG] Selected seed_track from songs filtered by genre: {seed_track}")
+                    seed_genre = None
+                else:
+                    track_seeds = []
+                    seed_genre = genre
+                    # print(f"[DEBUG] No recent songs found for genre {genre}. Using empty track_seeds.")
 
-                seed_genre = None
-            else:
-                track_seeds = []
-                seed_genre = genre
-                # print(f"[DEBUG] No recent songs found for genre {genre}. Using empty track_seeds.")
+                current_seed = f"{','.join(track_seeds)}" if track_seeds else seed_genre
+                all_seeds.append(current_seed)
 
-            current_seed = f"{','.join(track_seeds)}" if track_seeds else seed_genre
-            all_seeds.append(current_seed)
+                genre_track_ids = self.search_tracks_by_features_v3(
+                    access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
+                    length_min, length_max, track_seeds, genre_track_count, seed_genre
+                )
+                # print(f"[DEBUG] Found {len(genre_track_ids)} tracks for genre {genre}")
 
-            genre_track_ids = self.search_tracks_by_features_v3(
-                access_token, target_energy, target_valence, target_tempo, target_loudness, target_danceability,
-                length_min, length_max, track_seeds, genre_track_count, seed_genre
-            )
-            # print(f"[DEBUG] Found {len(genre_track_ids)} tracks for genre {genre}")
+                track_data.extend((track_id, genre) for track_id in genre_track_ids)
 
-            track_data.extend((track_id, genre) for track_id in genre_track_ids)
+            # print(f"[DEBUG] Total tracks before shuffling: {len(track_data)}")
+            if not track_data:
+                print("[DEBUG] No tracks found matching the criteria.")
+                return {
+                    "status": "error",
+                    "message": "No tracks found matching the given criteria. Playlist generation failed."
+                }
 
-        # print(f"[DEBUG] Total tracks before shuffling: {len(track_data)}")
-        if not track_data:
-            print("[DEBUG] No tracks found matching the criteria.")
-            return {
-                "status": "error",
-                "message": "No tracks found matching the given criteria. Playlist generation failed."
-            }
+            if len(track_data) > track_count:
+                track_data = random.sample(track_data, track_count)
+                print(f"[DEBUG] Track data after sampling to match track_count: {track_data}")
 
-        if len(track_data) > track_count:
-            track_data = random.sample(track_data, track_count)
-            print(f"[DEBUG] Track data after sampling to match track_count: {track_data}")
+            elif len(track_data) < track_count:
+                missing_tracks = track_count - len(track_data)
+                print(f"[DEBUG] Missing {missing_tracks} tracks after filtering.")
+                random.shuffle(track_data)
+                combined_seeds = ";".join(all_seeds)
+                print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
+                self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
+                return {
+                    "status": "warning",
+                    "message": f"Playlista posiada mniej utworów niż zostało wpisane. Brakuje {missing_tracks} utworów, "
+                               f"w celu polepszenia algorytmu spróbuj ponownie wygenerować playlistę,"
+                               f"zmienić parametry systemu, bądź dodać kilka utworów do polubionych.",
+                    "track_count": len(track_data)
+                }
 
-        elif len(track_data) < track_count:
-            missing_tracks = track_count - len(track_data)
-            print(f"[DEBUG] Missing {missing_tracks} tracks after filtering.")
             random.shuffle(track_data)
             combined_seeds = ";".join(all_seeds)
             print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
+
             self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
             return {
-                "status": "warning",
-                "message": f"Playlista posiada mniej utworów niż zostało wpisane. Brakuje {missing_tracks} utworów, "
-                           f"w celu polepszenia algorytmu spróbuj ponownie wygenerować playlistę,"
-                           f"zmienić parametry systemu, bądź dodać kilka utworów do polubionych.",
+                "status": "success",
+                "message": "Udało się stworzyć playlistę!",
                 "track_count": len(track_data)
             }
 
-        random.shuffle(track_data)
-        combined_seeds = ";".join(all_seeds)
-        print(f"[DEBUG] Combined seeds for playlist: {combined_seeds}")
-
-        self.create_playlist(access_token, playlist_name, track_data, combined_seeds, playlist_description, genres)
-        return {
-            "status": "success",
-            "message": "Udało się stworzyć playlistę!",
-            "track_count": len(track_data)
+    def get_search_results(self, access_token, query):
+        url = "https://api.spotify.com/v1/search"
+        headers = {
+            'Authorization': f'Bearer {access_token}'
         }
+        params = {
+            'q': query,
+            'limit': 15,
+            'type': 'track'
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            print(f"Nie udało się pobrać wyników wyszukiwania: {response.status_code}")
+            return []
+
+        search_results = response.json().get('tracks', {}).get('items', [])
+
+        tracks_data = []
+        for item in search_results:
+            track_info = {
+                'name': item['name'],
+                'artist': ", ".join(artist['name'] for artist in item['artists']),
+                'spotify_id': item['id'],
+                'image_url': item['album']['images'][0]['url'] if item['album']['images'] else None
+            }
+            tracks_data.append(track_info)
+
+        return tracks_data

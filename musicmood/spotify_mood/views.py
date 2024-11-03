@@ -10,7 +10,7 @@ from .models import User, PreferredGenre, Settings, Playlist, SongsPlaylist, Son
 from .models import Genre
 from django.http import JsonResponse
 from requests.exceptions import HTTPError
-import os
+import json
 from .classes.SpotifyAPI import SpotifyAPI
 
 
@@ -142,9 +142,16 @@ def home_view(request):
         mood = request.POST.get('mood')
         mood_intensity = request.POST.get('intensity')
         length_choice = request.POST.get('length')
-        print(length_choice)
         tolerance_choice = request.POST.get('tolerance')
-        print(tolerance_choice)
+        selected_song_ids = None
+        selected_songs_json = request.POST.get('selected_songs', '[]')
+
+        if selected_songs_json:
+            selected_songs = json.loads(selected_songs_json)
+            print(selected_songs)
+
+            selected_song_ids = [song['spotify_id'] for song in selected_songs]
+            print("Selected song IDs as list:", selected_song_ids)
 
         genres = request.POST.get('selected_genres').split(',')
         genre_percentages = list(map(int, request.POST.get('genre_percentages').split(',')))
@@ -178,7 +185,6 @@ def home_view(request):
             custom_params = None
 
         spotify_api = SpotifyAPI()
-
         if not spotify_api.is_user_logged_in(access_token):
             params = urlencode({'message': 'Token expired'})
             url = f"{reverse('spotify_mood:show_login_page')}?{params}"
@@ -194,7 +200,8 @@ def home_view(request):
             playlist_name,
             playlist_description,
             track_count,
-            custom_params
+            custom_params,
+            selected_song_ids
         )
         request.session['status'] = message["status"]
         request.session['message'] = message["message"]
@@ -248,6 +255,7 @@ def settings_view(request):
         'preferred_genre': preferred_genre_name,
         'playlists': playlists,
     })
+
 
 @check_access_token_expired
 def play_view(request):
@@ -333,6 +341,7 @@ def play_view(request):
         'message': message
     })
 
+
 @check_access_token_expired
 def info_view(request):
     user_id = request.session.get('user_id')
@@ -369,6 +378,7 @@ def search_artists(request):
 
     return JsonResponse({'artists': artists})
 
+
 @csrf_exempt
 def like_song(request, song_id):
     if request.method == 'POST':
@@ -381,6 +391,7 @@ def like_song(request, song_id):
         return JsonResponse({'status': 'liked'})
 
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
 
 @csrf_exempt
 def unlike_song(request, song_id):
@@ -396,3 +407,22 @@ def unlike_song(request, song_id):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
+@check_access_token_expired
+def search_song_view(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect(reverse('spotify_mood:show_login_page'))
+
+    access_token = request.session.get('access_token')
+    spotify_api = SpotifyAPI()
+    if not spotify_api.is_user_logged_in(access_token):
+        params = urlencode({'message': 'Token expired'})
+        url = f"{reverse('spotify_mood:show_login_page')}?{params}"
+        return redirect(url)
+
+    if request.method == "POST":
+        song_name = request.POST.get('song_name', '')
+        results = spotify_api.get_search_results(access_token, song_name)
+        return JsonResponse({'songs': results})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)

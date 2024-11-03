@@ -1,7 +1,7 @@
 {% extends 'navbar.html' %}
 {% load static %}
 {% block navbar %}
-<form method="POST" action="{% url 'spotify_mood:home' %}" style="padding: 20px;" onsubmit="return validateForm()">
+<form method="POST" action="{% url 'spotify_mood:home' %}" style="padding: 20px;">
     {% csrf_token %}
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh;">
         <h1 id="homeh1" class = "custom-h1">Cześć {{user.name}}!</h1>
@@ -96,6 +96,18 @@
             <input type="hidden" id="genrePercentagesInput" name="genre_percentages">
         </div>
 
+        <div class="home_div">
+            <h1>Wprowadź utwory, których chcesz użyć w rekomendacji (opcjonalnie):</h1>
+            <p>UWAGA! Jeśli artysta nie jest powiązany z gatunkiem, którego używasz, to otrzymasz mieszane rezultaty</p>
+            <div id="song_div" style="position:relative;">
+                <input type="text" id="songSearch" placeholder="Wpisz nazwę utworu..." style="width: 100%; padding: 8px;">
+                <button type="button" class="bi bi-search" id="searchButton" onclick="searchSong()"></button>
+            </div>
+            <ul class="songs-list" id="searchResults" style="display: none; max-height: 300px; overflow-y: auto;"></ul>
+            <div id="selectedSongsContainer" style="margin-top: 20px;"></div>
+            <input type="hidden" id="selectedSongsInput" name="selected_songs">
+        </div>
+
 
 
         <div class="home_div">
@@ -121,7 +133,7 @@
             </div>
         </div>
 
-        <button class="btn" type="submit" style="margin-top: 10px">
+        <button class="btn" type="submit" style="margin-top: 10px" value="generate_playlist" name="action" onclick="return validateForm()">
             <svg width="240px" height="70px" viewBox="0 0 220 70" style="border: 1px solid var(--detal); border-radius: 4px;">
                 <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
                 <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
@@ -334,7 +346,6 @@
         }
     }
 
-
     document.addEventListener('click', function (event) {
         const genreSuggestions = document.getElementById('genreSuggestions');
         const genreSearch = document.getElementById('genreSearch');
@@ -343,6 +354,7 @@
             genreSuggestions.style.display = 'none';
         }
     });
+
     function showLoadingModal() {
         const modal = document.getElementById('loadingModal');
         const loadingText = document.getElementById('loadingText');
@@ -360,7 +372,6 @@
     }
 
 
-
     function validateForm() {
         const mood = document.getElementById('moodInput').value;
         if (!mood) {
@@ -368,17 +379,26 @@
             return false;
         }
 
-        const selectedGenres = document.getElementById('selectedGenresInput').value;
+        const selectedGenresValue = document.getElementById('selectedGenresInput').value;
+        const selectedGenres = selectedGenresValue ? selectedGenresValue.split(',') : [];
         const genrePercentages = document.getElementById('genrePercentagesInput').value.split(',').map(Number);
         const totalPercentage = genrePercentages.reduce((acc, perc) => acc + perc, 0);
 
-        if (!selectedGenres) {
+        if (selectedGenres.length === 0) {
             alert('Musisz wybrać przynajmniej jeden gatunek muzyczny.');
             return false;
         }
 
         if (totalPercentage !== 100) {
             alert('Suma procentowa gatunków musi wynosić 100%.');
+            return false;
+        }
+
+        const selectedSongsValue = document.getElementById('selectedSongsInput').value;
+        const selectedSongs = selectedSongsValue ? JSON.parse(selectedSongsValue) : [];
+
+        if (selectedSongs.length > 0 && selectedGenres.length > 1) {
+            alert('Jeśli wybrałeś utwory, możesz wybrać tylko jeden gatunek muzyczny.');
             return false;
         }
 
@@ -402,6 +422,127 @@
 
         showLoadingModal();
         return true;
+    }
+
+    let selectedSongs = [];
+
+    function searchSong() {
+        const songName = document.getElementById('songSearch').value;
+
+        if (songName.trim() === "") {
+            alert("Proszę wpisać nazwę utworu do wyszukania.");
+            return;
+        }
+
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch("{% url 'spotify_mood:search_song' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken
+            },
+            body: new URLSearchParams({ 'song_name': songName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            displaySearchResults(data.songs);
+        })
+        .catch(error => {
+            console.error('Błąd:', error);
+        });
+    }
+
+    function displaySearchResults(songs) {
+        const searchResultsDiv = document.getElementById('searchResults');
+        searchResultsDiv.innerHTML = ''; // Wyczyść poprzednie wyniki
+
+        if (songs.length === 0) {
+            searchResultsDiv.innerHTML = '<li>Nie znaleziono utworów.</li>';
+            searchResultsDiv.style.display = 'block';
+        } else {
+            searchResultsDiv.style.display = 'block';
+            songs.forEach(song => {
+                const songItem = document.createElement('li');
+                songItem.style.display = 'flex';
+                songItem.style.alignItems = 'center';
+                songItem.style.padding = '8px';
+                songItem.style.cursor = 'pointer';
+                songItem.onclick = () => selectSong(song);
+
+                const songImage = document.createElement('img');
+                songImage.src = song.image_url || '{% static "spotify_mood/default_album.png" %}';
+                songImage.alt = song.name;
+                songImage.style.width = '50px';
+                songImage.style.height = '50px';
+                songImage.style.marginRight = '10px';
+
+                const songText = document.createElement('span');
+                songText.textContent = `${song.name} - ${song.artist}`;
+
+                songItem.appendChild(songImage);
+                songItem.appendChild(songText);
+                searchResultsDiv.appendChild(songItem);
+            });
+        }
+    }
+
+    function selectSong(song) {
+        if (selectedSongs.length >= 4) {
+            alert('Możesz wybrać maksymalnie 4 utwory.');
+            return;
+        }
+
+        if (selectedSongs.find(s => s.spotify_id === song.spotify_id)) {
+            alert('Ten utwór jest już dodany do listy.');
+            return;
+        }
+
+        selectedSongs.push(song);
+        updateSelectedSongs();
+    }
+
+    function updateSelectedSongs() {
+        const container = document.getElementById('selectedSongsContainer');
+        const selectedSongsInput = document.getElementById('selectedSongsInput');
+        container.innerHTML = ''; // Wyczyść poprzednie wyniki
+
+        selectedSongs.forEach((song, index) => {
+            const songTag = document.createElement('div');
+            songTag.classList.add('song-tag');
+            songTag.style.display = 'flex';
+            songTag.style.alignItems = 'center';
+            songTag.style.marginBottom = '10px';
+
+            const songImage = document.createElement('img');
+            songImage.src = song.image_url || '{% static "spotify_mood/default_album.png" %}';
+            songImage.alt = song.name;
+            songImage.style.width = '50px';
+            songImage.style.height = '50px';
+            songImage.style.marginRight = '10px';
+
+            const songName = document.createElement('span');
+            songName.textContent = `${song.name} - ${song.artist}`;
+            songName.style.flex = '1';
+
+            const removeButton = document.createElement('span');
+            removeButton.textContent = ' X';
+            removeButton.classList.add('remove-button');
+            removeButton.onclick = () => removeSong(index);
+
+            songTag.appendChild(songImage);
+            songTag.appendChild(songName);
+            songTag.appendChild(removeButton);
+
+            container.appendChild(songTag);
+        });
+
+        selectedSongsInput.value = JSON.stringify(selectedSongs);
+    }
+
+    function removeSong(index) {
+        selectedSongs.splice(index, 1);
+        updateSelectedSongs();
     }
 
 

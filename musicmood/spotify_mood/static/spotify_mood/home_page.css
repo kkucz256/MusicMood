@@ -108,7 +108,7 @@
     box-sizing: border-box;
 }
 
-#genreSearch, #moodInput, #playlist_name, #playlist_description{
+#genreSearch, #moodInput, #playlist_name, #playlist_description, #songSearch{
     background-color: var(--ciemniejszy-szary);
     color: var(--tekst);
     border: 1px solid var(--detal);
@@ -121,7 +121,7 @@
     color: var(--tekst);
 }
 
-#genreSearch:hover, #moodInput:hover, #playlist_name:hover, #playlist_description:hover, #track_count:hovercd musi{
+#genreSearch:hover, #moodInput:hover, #playlist_name:hover, #playlist_description:hover, #track_count:hover, #songSearch:hover{
     transform: scale(1.01);
 }
 
@@ -146,6 +146,21 @@
     border-radius: 8px;
     text-align: center;
 }
+#searchButton{
+    position: absolute;
+    right: 0;
+    top: 20%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: var(--detal);
+}
+#searchButton:hover{
+    transform: scale(1.1);
+    color: var(--ciemny-wiodący);
+}
+
 @media (min-width: 768px) {
     .home_div {
         width: 65%;
@@ -183,7 +198,7 @@
         margin-left: 70px;
         width: 30%;
     }
-    #genre_div{
+    #genre_div, #song_div{
         width: 40%;
     }
 
