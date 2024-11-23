@@ -1,0 +1,23 @@
+:root {
+    --wiodący: #2980B9;
+    --ciemny-wiodący: #1F618D;
+    --jasno-szary: #F0F2F5;
+    --ciemniejszy-szary: #EBEBEB;
+    --najciemniejszy: #FFFFFF;
+    --najciemniejszy_bez_cienia: #FFFFFF;
+    --tekst: #000000;
+    --detal: #A6A6A6;
+    --button-text: #FFFFFF;
+}
+
+:root.dark-theme {
+    --wiodący: #2980B9;
+    --ciemny-wiodący: #1F618D;
+    --jasno-szary: #45474B;
+    --ciemniejszy-szary: #343539;
+    --najciemniejszy: rgba(0, 0, 0, 0.5);
+    --najciemniejszy_bez_cienia: #222325;
+    --tekst: #FFFFFF;
+    --detal: #FFFFFF;
+    --button-text: #FFFFFF;
+}

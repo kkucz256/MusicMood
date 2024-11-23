@@ -1,0 +1,250 @@
+#genreSuggestions, #moodDropdown{
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--detal);
+    background-color: var(--ciemniejszy-szary);
+    position: absolute;
+    z-index: 10000;
+    top: 0;
+    left: 0;
+    transform: translateY(40px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: var(--tekst);
+    display: none;
+    border-radius: 4px;
+}
+
+#genreSuggestions li, #moodDropdown li {
+    padding: 10px;
+    cursor: pointer;
+    background-color: var(--ciemniejszy-szary);
+    transition: font-size 0.2s ease-in-out;
+}
+
+#genreSuggestions li:hover, #moodDropdown li:hover {
+    color: var(--wiodący);
+    background-color: var(--ciemniejszy-szary);
+    font-size: calc(100% + 2px);
+}
+
+#moodDropdownButton{
+    color:var(--detal);
+}
+
+.home_div {
+    margin-top: 10px;
+    background-color: var(--najciemniejszy);
+    text-align: left;
+    border-radius: 10px;
+    color: var(--tekst);
+    border: 2px solid var(--wiodący);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+#selectedGenresContainer{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#selectedGenresContainer div{
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    background-color: var(--jasno-szary);
+    border: 1px solid var(--detal);
+    border-radius: 5px;
+    width: auto;
+}
+
+#selectedGenresContainer div:hover{
+    transform: scale(1.05);
+}
+
+#selectedGenresContainer div input[type="number"]{
+    width: 50px;
+    margin-left: 10px;
+}
+
+.genre-tag {
+    display: flex;
+    align-items: center;
+    margin: 5px;
+    padding: 5px;
+    background-color: var(--ciemniejszy-szary);
+    border: 1px solid var(--detal);
+    border-radius: 5px;
+    width: auto;
+}
+
+.genre-percentage-input {
+    margin-left: 10px;
+    border-radius: 5px;
+    color:var(--tekst);
+    border: none;
+    background-color: var(--ciemniejszy-szary);
+}
+
+.remove-button {
+    cursor: pointer;
+    color: var(--wiodący);
+    margin-left: 10px;
+}
+
+
+
+#track_count {
+    background-color: var(--ciemniejszy-szary);
+    color: var(--tekst);
+    border: 1px solid var(--detal);
+    padding: 8px;
+    height: 100%;
+    width:80px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+#genreSearch, #moodInput, #playlist_name, #playlist_description, #songSearch{
+    background-color: var(--ciemniejszy-szary);
+    color: var(--tekst);
+    border: 1px solid var(--detal);
+    padding: 8px;
+    border-radius: 5px;
+}
+
+.remove-button:hover{
+    transform: scale(1.1);
+    color: var(--tekst);
+}
+
+#genreSearch:hover, #moodInput:hover, #playlist_name:hover, #playlist_description:hover, #track_count:hover, #songSearch:hover{
+    transform: scale(1.01);
+}
+
+#loadingModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+#modalContents {
+    background: var(--najciemniejszy_bez_cienia);
+    border: 2px solid var(--wiodący);
+    color: var(--tekst);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+#searchButton{
+    position: absolute;
+    right: 0;
+    top: 20%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: var(--detal);
+}
+#searchButton:hover{
+    transform: scale(1.1);
+    color: var(--ciemny-wiodący);
+}
+
+@media (min-width: 768px) {
+    .home_div {
+        width: 65%;
+        padding: 20px;
+    }
+    input[type="text"] {
+        width: 40%;
+    }
+    #tolerance_label{
+        margin-left: 80px;
+        width: 60%;
+    }
+    #playlist_container {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+    #playlist_name_div{
+        margin-right: 10%;
+    }
+    .selected-genres-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    #homeh1{
+        margin-top:5%; !important;
+    }
+    #mooddiv{
+        width: 40%;
+    }
+    #moodInput{
+        width: 100%;
+    }
+    #tolerance_label{
+        margin-left: 70px;
+        width: 30%;
+    }
+    #genre_div, #song_div{
+        width: 40%;
+    }
+
+}
+@media (max-width: 576px) {
+    .home_div {
+        width: 100%;
+        padding: 10px;
+        text-align: center;
+    }
+
+    h1, h2{
+        font-size: 1.2rem;
+        text-align: center;
+    }
+
+    input[type="text"] {
+        width: 90%;
+    }
+
+    #tolerance_label{
+        margin-left: 0px;
+        width: 100%;
+    }
+    #radio_div{
+        justify-content: center;
+        align-content: center;
+    }
+    #playlist_container{
+        flex-direction: column;
+        text-align: center;
+    }
+    #selectedGenresContainer{
+        justify-content: center;
+        align-content: center;
+    }
+    h3{
+        font-size: 0.9rem;
+    }
+    #energy, #tempo, #positivity, #loudness, #danceability{
+        width:55%;
+    }
+    #homeh1{
+        margin-top:100px; !important;
+        width: 90%;
+        font-size: 24px;
+    }
+
+}

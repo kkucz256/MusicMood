@@ -19,11 +19,13 @@
                             <p>Spotify ID: {{ entry.playlist.spotify_id }}</p>
                         {% endif %}
                     </div>
+                    {% if entry.playlist.name != 'Polubione utwory' %}
                      <div class="player-controls">
                         <i class="bi bi-skip-forward-circle"></i>
                         <i class="bi bi-play-circle play-toggle" data-uri="spotify:playlist:{{ entry.playlist.spotify_id }}"></i>
                         <i class="bi bi-skip-backward-circle"></i>
                     </div>
+                    {% endif %}
                 </div>
 
 

@@ -60,40 +60,40 @@ class Fuzzy:
 
         self.rules = [
             ctrl.Rule(self.mood['smutny'] & self.time_of_day['rano'], (
-                self.energy['low'], self.valence['low'], self.tempo['slow'],
-                self.loudness['quiet'], self.danceability['low'])),
+                self.energy['low-medium'], self.valence['low-medium'], self.tempo['slow'],
+                self.loudness['quiet-medium'], self.danceability['low'])),
 
             ctrl.Rule(self.mood['smutny'] & self.time_of_day['popołudnie'], (
-                self.energy['low-medium'], self.valence['low'], self.tempo['slow-medium'],
+                self.energy['low-medium'], self.valence['low-medium'], self.tempo['slow-medium'],
                 self.loudness['quiet-medium'], self.danceability['low-medium'])),
 
             ctrl.Rule(self.mood['smutny'] & self.time_of_day['wieczór'], (
-                self.energy['low'], self.valence['low'], self.tempo['slow'],
-                self.loudness['quiet'], self.danceability['low'])),
+                self.energy['low'], self.valence['low-medium'], self.tempo['slow'],
+                self.loudness['quiet'], self.danceability['low-medium'])),
 
             ctrl.Rule(self.mood['spokojny'] & self.time_of_day['rano'], (
                 self.energy['medium'], self.valence['medium'], self.tempo['slow-medium'],
-                self.loudness['medium'], self.danceability['medium'])),
+                self.loudness['medium'], self.danceability['low-medium'])),
 
             ctrl.Rule(self.mood['spokojny'] & self.time_of_day['popołudnie'], (
-                self.energy['medium-high'], self.valence['medium-high'], self.tempo['medium'],
-                self.loudness['medium-loud'], self.danceability['medium-high'])),
+                self.energy['medium'], self.valence['medium'], self.tempo['medium'],
+                self.loudness['medium'], self.danceability['medium'])),
 
             ctrl.Rule(self.mood['spokojny'] & self.time_of_day['wieczór'], (
-                self.energy['medium'], self.valence['medium'], self.tempo['slow-medium'],
-                self.loudness['medium'], self.danceability['medium'])),
+                self.energy['low-medium'], self.valence['medium'], self.tempo['slow-medium'],
+                self.loudness['quiet-medium'], self.danceability['medium'])),
 
             ctrl.Rule(self.mood['szczęśliwy'] & self.time_of_day['rano'], (
                 self.energy['high'], self.valence['high'], self.tempo['medium-fast'],
-                self.loudness['medium'], self.danceability['medium-high'])),
+                self.loudness['loud'], self.danceability['medium-high'])),
 
             ctrl.Rule(self.mood['szczęśliwy'] & self.time_of_day['popołudnie'], (
                 self.energy['high'], self.valence['high'], self.tempo['fast'],
                 self.loudness['loud'], self.danceability['high'])),
 
             ctrl.Rule(self.mood['szczęśliwy'] & self.time_of_day['wieczór'], (
-                self.energy['medium-high'], self.valence['medium-high'], self.tempo['medium-fast'],
-                self.loudness['medium-loud'], self.danceability['medium-high']))
+                self.energy['medium-high'], self.valence['high'], self.tempo['medium-fast'],
+                self.loudness['medium-loud'], self.danceability['high']))
         ]
 
     def compute_recommendation(self, mood_value, time_of_day):
@@ -118,26 +118,42 @@ class Fuzzy:
         print(f"Loudness: {results['loudness']} dB")
         print(f"Danceability: {results['danceability']}")
 
-    def plot_mood_membership_functions(self):
-        # Tworzenie wykresów funkcji przynależności dla zmiennej `mood`
-        plt.figure(figsize=(8, 5))
+    def plot_membership_functions(self):
+        # Rysowanie funkcji przynależności dla zmiennej 'mood' oraz 'time_of_day'
+        plt.figure(figsize=(12, 10))
+
+        # Wykres dla 'mood'
+        plt.subplot(2, 1, 1)
         plt.plot(self.mood.universe, self.mood['smutny'].mf, label='smutny', color='blue')
         plt.plot(self.mood.universe, self.mood['spokojny'].mf, label='spokojny', color='green')
         plt.plot(self.mood.universe, self.mood['szczęśliwy'].mf, label='szczęśliwy', color='orange')
 
-        plt.axhline(0, color='black', linewidth=3)
-        plt.axvline(0, color='black', linewidth=3)
+        plt.axhline(0, color='black', linewidth=1)
+        plt.axvline(0, color='black', linewidth=1)
 
         plt.title("Funkcje przynależności dla zmiennej 'mood'")
         plt.xlabel("Wartość nastroju")
         plt.ylabel("Stopień przynależności")
         plt.legend(loc="upper right")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-        # Dostosowanie osi X i wyglądu siatki
-        plt.xticks(np.linspace(0, 1, 6))  # Ustawienie znaczników osi X na 0, 0.2, 0.4, 0.6, 0.8, 1
-        plt.grid(True, which='both', linestyle='--', linewidth=0.5)  # Siatka dla czytelności
+        plt.subplot(2, 1, 2)
+        plt.plot(self.time_of_day.universe, self.time_of_day['rano'].mf, label='rano', color='purple')
+        plt.plot(self.time_of_day.universe, self.time_of_day['popołudnie'].mf, label='popołudnie', color='red')
+        plt.plot(self.time_of_day.universe, self.time_of_day['wieczór'].mf, label='wieczór', color='brown')
+
+        plt.axhline(0, color='black', linewidth=1)
+        plt.axvline(0, color='black', linewidth=1)
+
+        plt.title("Funkcje przynależności dla zmiennej 'time_of_day'")
+        plt.xlabel("Godzina dnia")
+        plt.ylabel("Stopień przynależności")
+        plt.legend(loc="upper right")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+        plt.tight_layout()
         plt.show()
 
 if __name__ == "__main__":
     fuzzy_system = Fuzzy()
-    fuzzy_system.plot_mood_membership_functions()
+    fuzzy_system.plot_membership_functions()

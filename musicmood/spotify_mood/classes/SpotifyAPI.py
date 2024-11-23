@@ -16,8 +16,8 @@ from ..models import LikedSongs, Playlist, Genre
 
 class SpotifyAPI:
     CLIENT_ID = 'd596c03aba8648328d29072f30f046bc'
-    # REDIRECT_URI = 'http://127.0.0.1:8000/callback'
-    REDIRECT_URI = 'http://192.168.0.81:8000/callback'
+    REDIRECT_URI = 'http://127.0.0.1:8000/callback'
+    # REDIRECT_URI = 'http://192.168.0.81:8000/callback'
     SCOPE = 'user-read-private user-read-email user-library-read user-library-modify playlist-read-private playlist-modify-public playlist-modify-private streaming user-read-playback-state user-modify-playback-state'
     AUTH_URL = 'https://accounts.spotify.com/authorize'
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
@@ -76,7 +76,12 @@ class SpotifyAPI:
     def get_user_info(self, access_token):
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get('https://api.spotify.com/v1/me', headers=headers)
-        return response.json()
+
+        try:
+            user_info = response.json()
+            return user_info
+        except ValueError as e:
+            return {"error": "Błąd przy dekodowaniu JSON", "response_text": response.text}
 
     def get_user_playlists(self, access_token):
         url = 'https://api.spotify.com/v1/me/playlists'
@@ -348,19 +353,19 @@ class SpotifyAPI:
         else:
             for genre, percentage in zip(genres, genre_percentages):
                 genre_track_count = max(1, round(track_count * (percentage / 100)))
-                # print(f"[DEBUG] Genre: {genre}, Percentage: {percentage}%, Track Count: {genre_track_count}")
+                print(f"[DEBUG] Genre: {genre}, Percentage: {percentage}%, Track Count: {genre_track_count}")
 
                 recent_songs_from_playlist_with_genre = self.db_connector.get_recent_tracks_by_genre(user, genre, limit=5)
                 recent_songs = [song.spotify_id for song in recent_songs_from_playlist_with_genre]
-                # print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
+                print(f"[DEBUG] Recent songs for genre {genre}: {recent_songs}")
 
                 genre_id = Genre.objects.get(genre=genre).genre_id
                 songs_filtered_by_genre = [song for song in recent_songs_from_playlist_with_genre if
                                            song.genre_id == genre_id]
-                # print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
+                print(f"[DEBUG] Songs filtered by genre {genre}: {[song.spotify_id for song in songs_filtered_by_genre]}")
 
                 recent_playlists = self.db_connector.get_recent_playlists_by_genre(user, genre, limit=5)
-                # print(f"[DEBUG] Recent playlists for genre {genre}: {[playlist.seed for playlist in recent_playlists]}")
+                print(f"[DEBUG] Recent playlists for genre {genre}: {[playlist.seed for playlist in recent_playlists]}")
 
                 recently_added_tracks = self.get_recently_added_tracks(access_token)
                 track_seeds = []

@@ -1,0 +1,2 @@
+# requirements.txt
+pyngrok==7.2.1

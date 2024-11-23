@@ -1,0 +1,121 @@
+.center-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.settings-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.settings_div {
+    width: 50%;
+    margin-top: 10px;
+    background-color: var(--najciemniejszy);
+    padding: 15px;
+    text-align: center;
+    border-radius: 10px;
+    color: var(--tekst);
+    border: 2px solid var(--wiodący);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid var(--tekst);
+}
+
+.radio-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#genreSuggestions_s {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    width: 40%;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--tekst);
+    background-color: var(--ciemniejszy-szary);
+    position: absolute;
+    align-items: center;
+    z-index: 100;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: var(--tekst);
+    display: none;
+    border-radius: 4px;
+}
+
+#genreSuggestions_s li {
+    padding: 10px;
+    cursor: pointer;
+    background-color: var(--ciemniejszy-szary);
+    transition: font-size 0.2s ease-in-out;
+}
+
+#genreSuggestions_s li:hover {
+    color: var(--wiodący);
+    background-color: var(--ciemniejszy-szary);
+    font-size: calc(100% + 2px);
+}
+
+@media (min-width: 768px) {
+    .settings_div {
+        width: 50%;
+        padding: 20px;
+    }
+
+    input[type="text"] {
+        width: 40%;
+    }
+
+}
+
+@media (max-width: 576px) {
+    .settings_div {
+        width: 100%;
+        padding: 10px;
+    }
+
+    h1, h2 {
+        font-size: 1.2rem;
+        text-align: center;
+    }
+
+    input[type="text"] {
+        width: 100%;
+    }
+
+    #settingsh1{
+        margin-top:50px;
+        width: 90%;
+        font-size: 24px;
+    }
+    .center-container{
+        text-align: center;
+    }
+}
+
+
+
+

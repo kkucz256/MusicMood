@@ -69,28 +69,35 @@ def callback_view(request):
     request.session['access_token'] = access_token
 
     user_info = spotify_api.get_user_info(access_token)
+
+    if 'id' not in user_info:
+        return HttpResponse("Failed to retrieve user info", status=400)
+
     spotify_id = user_info.get('id')
     spotify_name = user_info.get('display_name', '')
     current_time = timezone.now()
 
-    user, created = User.objects.get_or_create(
-        spotify_id=spotify_id,
-        defaults={
-            'name': spotify_name,
-            'token': access_token,
-            'created_at': current_time,
-            'last_login': current_time
-        }
-    )
+    try:
+        user, created = User.objects.get_or_create(
+            spotify_id=spotify_id,
+            defaults={
+                'name': spotify_name,
+                'token': access_token,
+                'created_at': current_time,
+                'last_login': current_time
+            }
+        )
+        if not created:
+            user.token = access_token
+            user.last_login = current_time
+            user.save()
 
-    if not created:
-        user.token = access_token
-        user.last_login = current_time
-        user.save()
+    except Exception as e:
+        return HttpResponse("Database error during user retrieval or update", status=500)
 
     request.session['user_id'] = user.id
-
     return redirect(reverse('spotify_mood:home'))
+
 
 
 def show_login_page(request):
@@ -407,20 +414,21 @@ def unlike_song(request, song_id):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
-@check_access_token_expired
 def search_song_view(request):
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect(reverse('spotify_mood:show_login_page'))
-
     access_token = request.session.get('access_token')
-    spotify_api = SpotifyAPI()
-    if not spotify_api.is_user_logged_in(access_token):
-        params = urlencode({'message': 'Token expired'})
-        url = f"{reverse('spotify_mood:show_login_page')}?{params}"
-        return redirect(url)
 
     if request.method == "POST":
+        spotify_api = SpotifyAPI()
+
+        if not spotify_api.is_user_logged_in(access_token):
+            params = urlencode({'message': 'Token expired'})
+            url = f"{reverse('spotify_mood:show_login_page')}?{params}"
+            print("Redirect URL:", url)
+            return JsonResponse({'redirect': url})
+
         song_name = request.POST.get('song_name', '')
         results = spotify_api.get_search_results(access_token, song_name)
         return JsonResponse({'songs': results})

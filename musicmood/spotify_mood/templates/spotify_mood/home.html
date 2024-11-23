@@ -446,12 +446,22 @@
         })
         .then(response => response.json())
         .then(data => {
-            displaySearchResults(data.songs);
+            console.log('Odpowiedź serwera:', data);
+            if (data.redirect) {
+                // Przekierowanie użytkownika na stronę logowania
+                window.location.href = data.redirect;
+            } else if (data.songs) {
+                // Wyświetlenie wyników wyszukiwania
+                displaySearchResults(data.songs);
+            } else {
+                console.error('Nieoczekiwana odpowiedź:', data);
+            }
         })
         .catch(error => {
             console.error('Błąd:', error);
         });
     }
+
 
     function displaySearchResults(songs) {
         const searchResultsDiv = document.getElementById('searchResults');
