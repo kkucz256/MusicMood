@@ -18,29 +18,6 @@ import urllib.parse
 from .classes.SpotifyAPI import SpotifyAPI
 
 
-def check_access_token_expired(view_func):
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        try:
-            response = view_func(request, *args, **kwargs)
-            if isinstance(response, JsonResponse) and response.status_code == 401:
-                request.session.flush()
-                params = urlencode({'message': 'Token expired'})
-                url = f"{reverse('spotify_mood:show_login_page')}?{params}"
-                return redirect(url)
-            return response
-        except HTTPError as e:
-            if e.response.status_code == 401:
-                request.session.flush()
-                params = urlencode({'message': 'Token expired.'})
-                url = f"{reverse('spotify_mood:show_login_page')}?{params}"
-                return redirect(url)
-            raise e
-
-    return _wrapped_view
-
-
-@check_access_token_expired
 def log_in_view(request):
     spotify_api = SpotifyAPI()
     code_verifier = spotify_api.generate_code_verifier()
@@ -106,7 +83,6 @@ def callback_view(request):
     return redirect(reverse('spotify_mood:home'))
 
 
-
 def show_login_page(request):
     message = request.GET.get('message', '')
     return render(request, "spotify_mood/login.html", {'message': message})
@@ -122,7 +98,6 @@ def search_genres(request):
     return JsonResponse({'genres': list(genres)})
 
 
-@check_access_token_expired
 def home_view(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -232,7 +207,6 @@ def home_view(request):
     })
 
 
-@check_access_token_expired
 def settings_view(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -271,9 +245,7 @@ def settings_view(request):
     })
 
 
-@check_access_token_expired
 def play_view(request):
-
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect(reverse('spotify_mood:show_login_page'))
@@ -365,7 +337,6 @@ def play_view(request):
                 'liked': is_liked
             })
 
-
         image_url = matched_spotify_playlist['images'][0]['url'] if matched_spotify_playlist.get('images') and len(
             matched_spotify_playlist['images']) > 0 else None
 
@@ -387,8 +358,6 @@ def play_view(request):
     })
 
 
-
-@check_access_token_expired
 def info_view(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -398,7 +367,6 @@ def info_view(request):
     return render(request, "spotify_mood/info.html", {'user': user})
 
 
-@check_access_token_expired
 def remove_preferred_genre(request):
     user_id = request.session.get('user_id')
     genre_name = request.GET.get('genre')
@@ -411,7 +379,6 @@ def remove_preferred_genre(request):
     return JsonResponse({'success': False})
 
 
-@check_access_token_expired
 def search_artists(request):
     query = request.GET.get('q', '')
     access_token = request.session.get('access_token')
@@ -474,6 +441,7 @@ def search_song_view(request):
 
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
+
 def tastedive(request):
     user_id = request.session.get('user_id')
     if not user_id:
@@ -488,10 +456,12 @@ def tastedive(request):
         try:
             artist_data = json.loads(artist_name)
         except json.JSONDecodeError:
-            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Niepoprawny format danych artysty!"})
+            return render(request, "spotify_mood/tastedive.html",
+                          {'user': user, 'error': "Niepoprawny format danych artysty!"})
 
         if "name" not in artist_data:
-            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Nie znaleziono klucza 'name' w danych artysty!"})
+            return render(request, "spotify_mood/tastedive.html",
+                          {'user': user, 'error': "Nie znaleziono klucza 'name' w danych artysty!"})
 
         artist_name_value = artist_data["name"]
 
@@ -512,7 +482,8 @@ def tastedive(request):
                           ][:10]
 
         if not similar_artists:
-            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Nie znaleziono podobnych artystów."})
+            return render(request, "spotify_mood/tastedive.html",
+                          {'user': user, 'error': "Nie znaleziono podobnych artystów."})
 
         for artist in similar_artists:
             print(f"- {artist}")
@@ -542,7 +513,7 @@ def tastedive(request):
 
     return render(request, "spotify_mood/tastedive.html", {'user': user})
 
-@check_access_token_expired
+
 def search_artist_view(request):
     user_id = request.session.get('user_id')
     if not user_id:

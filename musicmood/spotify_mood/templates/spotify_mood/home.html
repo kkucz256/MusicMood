@@ -446,12 +446,9 @@
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Odpowiedź serwera:', data);
             if (data.redirect) {
-                // Przekierowanie użytkownika na stronę logowania
                 window.location.href = data.redirect;
             } else if (data.songs) {
-                // Wyświetlenie wyników wyszukiwania
                 displaySearchResults(data.songs);
             } else {
                 console.error('Nieoczekiwana odpowiedź:', data);
@@ -465,7 +462,7 @@
 
     function displaySearchResults(songs) {
         const searchResultsDiv = document.getElementById('searchResults');
-        searchResultsDiv.innerHTML = ''; // Wyczyść poprzednie wyniki
+        searchResultsDiv.innerHTML = '';
 
         if (songs.length === 0) {
             searchResultsDiv.innerHTML = '<li>Nie znaleziono utworów.</li>';
@@ -515,7 +512,7 @@
     function updateSelectedSongs() {
         const container = document.getElementById('selectedSongsContainer');
         const selectedSongsInput = document.getElementById('selectedSongsInput');
-        container.innerHTML = ''; // Wyczyść poprzednie wyniki
+        container.innerHTML = '';
 
         selectedSongs.forEach((song, index) => {
             const songTag = document.createElement('div');

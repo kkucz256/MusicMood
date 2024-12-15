@@ -119,10 +119,8 @@ class Fuzzy:
         print(f"Danceability: {results['danceability']}")
 
     def plot_membership_functions(self):
-        # Rysowanie funkcji przynależności dla zmiennej 'mood' oraz 'time_of_day'
         plt.figure(figsize=(12, 10))
 
-        # Wykres dla 'mood'
         plt.subplot(2, 1, 1)
         plt.plot(self.mood.universe, self.mood['smutny'].mf, label='smutny', color='blue')
         plt.plot(self.mood.universe, self.mood['spokojny'].mf, label='spokojny', color='green')
@@ -153,6 +151,7 @@ class Fuzzy:
 
         plt.tight_layout()
         plt.show()
+
 
 if __name__ == "__main__":
     fuzzy_system = Fuzzy()

@@ -173,10 +173,8 @@
             }
 
             const { paused, position, duration } = state;
-            console.log(`Stan odtwarzacza: paused=${paused}, position=${position}, duration=${duration}`);
 
             if (!isTrackEnded && paused && position === 0 && duration > 1000) {
-                console.log("Utwór zakończony, przechodzę do następnego...");
                 isTrackEnded = true;
                 setTimeout(() => nextTrack(), 500);
             } else {
@@ -244,7 +242,6 @@
         }
 
         const trackUri = playlistTracks[index];
-        console.log(`Próba odtworzenia utworu z indeksu ${index}: ${trackUri}`);
 
         const playOptions = resume && lastTrackUri === trackUri && lastPositionMs > 0
             ? { uris: [trackUri], position_ms: lastPositionMs }
@@ -263,7 +260,6 @@
         });
 
         if (response.ok) {
-            console.log(`Odtwarzanie utworu z indeksu ${index}: ${trackUri}`);
             lastTrackUri = trackUri;
             if (!resume) {
                 lastPositionMs = 0;
@@ -317,7 +313,6 @@
             if (playbackState && playbackState.item) {
                 lastTrackUri = playbackState.item.uri;
                 lastPositionMs = playbackState.progress_ms;
-                console.log('Zapamiętano obecny utwór i pozycję:', lastTrackUri, lastPositionMs);
             }
         } else {
             const errorMessage = await playbackStateResponse.text();
@@ -332,7 +327,6 @@
         });
 
         if (response.ok) {
-            console.log('Odtwarzanie zatrzymane');
             if (lastTrackElement) {
                 lastTrackElement.querySelector('.song-title').style.color = '';
                 lastTrackElement.querySelector('.playing-status').style.display = 'none';

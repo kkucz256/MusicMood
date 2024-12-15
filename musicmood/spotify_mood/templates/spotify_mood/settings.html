@@ -52,55 +52,55 @@
 <script>
     let availableGenres = [];
 
-function searchGenres() {
-    const query = document.getElementById('genreSearch').value;
-    const suggestions = document.getElementById('genreSuggestions_s');
+    function searchGenres() {
+        const query = document.getElementById('genreSearch').value;
+        const suggestions = document.getElementById('genreSuggestions_s');
 
-    if (query === '') {
-        suggestions.style.display = 'none';
-        availableGenres = [];
-        return;
-    }
+        if (query === '') {
+            suggestions.style.display = 'none';
+            availableGenres = [];
+            return;
+        }
 
-    fetch(`/search_genres/?q=` + query)
-        .then(response => response.json())
-        .then(data => {
-            suggestions.innerHTML = '';
-            availableGenres = data.genres;
+        fetch(`/search_genres/?q=` + query)
+            .then(response => response.json())
+            .then(data => {
+                suggestions.innerHTML = '';
+                availableGenres = data.genres;
 
-            data.genres.forEach(genre => {
-                const li = document.createElement('li');
-                li.textContent = genre;
-                li.style.padding = '8px';
-                li.style.cursor = 'pointer';
-                li.onclick = () => selectGenre(genre);
-                suggestions.appendChild(li);
+                data.genres.forEach(genre => {
+                    const li = document.createElement('li');
+                    li.textContent = genre;
+                    li.style.padding = '8px';
+                    li.style.cursor = 'pointer';
+                    li.onclick = () => selectGenre(genre);
+                    suggestions.appendChild(li);
+                });
+
+                if (data.genres.length > 0) {
+                    suggestions.style.display = 'block';
+                } else {
+                    suggestions.style.display = 'none';
+                }
             });
-
-            if (data.genres.length > 0) {
-                suggestions.style.display = 'block';
-            } else {
-                suggestions.style.display = 'none';
-            }
-        });
-}
-
-function selectGenre(genre) {
-    document.getElementById('genreSearch').value = genre;
-    document.getElementById('genreSuggestions_s').style.display = 'none';
-}
-
-function validateGenre() {
-    const selectedGenre = document.getElementById('genreSearch').value;
-
-
-    if (availableGenres.length === 0 || !availableGenres.includes(selectedGenre)) {
-        alert('Gatunek ' + selectedGenre + ' nie istnieje. Proszę wybrać gatunek z listy.');
-        return false;
     }
-    alert('Udało się zapisać gatunek ' + selectedGenre + ' i preferowaną długość utworu.');
-    return true;
-}
+
+    function selectGenre(genre) {
+        document.getElementById('genreSearch').value = genre;
+        document.getElementById('genreSuggestions_s').style.display = 'none';
+    }
+
+    function validateGenre() {
+        const selectedGenre = document.getElementById('genreSearch').value;
+
+
+        if (availableGenres.length === 0 || !availableGenres.includes(selectedGenre)) {
+            alert('Gatunek ' + selectedGenre + ' nie istnieje. Proszę wybrać gatunek z listy.');
+            return false;
+        }
+        alert('Udało się zapisać gatunek ' + selectedGenre + ' i preferowaną długość utworu.');
+        return true;
+    }
 
 </script>
 {% endblock %}
