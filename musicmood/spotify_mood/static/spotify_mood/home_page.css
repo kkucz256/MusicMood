@@ -97,7 +97,7 @@
 
 
 
-#track_count {
+#track_count, #td_track_count {
     background-color: var(--ciemniejszy-szary);
     color: var(--tekst);
     border: 1px solid var(--detal);
@@ -108,7 +108,7 @@
     box-sizing: border-box;
 }
 
-#genreSearch, #moodInput, #playlist_name, #playlist_description, #songSearch{
+#genreSearch, #moodInput, #playlist_name, #playlist_description, #td_playlist_name, #songSearch, #artistSearch{
     background-color: var(--ciemniejszy-szary);
     color: var(--tekst);
     border: 1px solid var(--detal);
@@ -121,11 +121,11 @@
     color: var(--tekst);
 }
 
-#genreSearch:hover, #moodInput:hover, #playlist_name:hover, #playlist_description:hover, #track_count:hover, #songSearch:hover{
+#genreSearch:hover, #moodInput:hover, #playlist_name:hover, #playlist_description:hover, #track_count:hover, #songSearch:hover, #artistSearch:hover, #td_playlist_name:hover{
     transform: scale(1.01);
 }
 
-#loadingModal {
+#loadingModal, #td_loadingModal {
     display: none;
     position: fixed;
     top: 0;
@@ -138,7 +138,7 @@
     justify-content: center;
 }
 
-#modalContents {
+#modalContents, #td_modalContents {
     background: var(--najciemniejszy_bez_cienia);
     border: 2px solid var(--wiodący);
     color: var(--tekst);
@@ -146,7 +146,7 @@
     border-radius: 8px;
     text-align: center;
 }
-#searchButton{
+#searchButton, #td_searchButton{
     position: absolute;
     right: 0;
     top: 20%;
@@ -156,7 +156,7 @@
     font-size: 24px;
     color: var(--detal);
 }
-#searchButton:hover{
+#searchButton:hover, #td_searchButton:hover{
     transform: scale(1.1);
     color: var(--ciemny-wiodący);
 }
@@ -173,12 +173,12 @@
         margin-left: 80px;
         width: 60%;
     }
-    #playlist_container {
+    #playlist_container, #td_playlist_container {
         display: flex;
         align-items: flex-start;
         margin-bottom: 20px;
     }
-    #playlist_name_div{
+    #playlist_name_div, #td_playlist_name_div{
         margin-right: 10%;
     }
     .selected-genres-container {
@@ -227,7 +227,7 @@
         justify-content: center;
         align-content: center;
     }
-    #playlist_container{
+    #playlist_container, #td_playlist_container{
         flex-direction: column;
         text-align: center;
     }

@@ -131,7 +131,7 @@ class Fuzzy:
         plt.axhline(0, color='black', linewidth=1)
         plt.axvline(0, color='black', linewidth=1)
 
-        plt.title("Funkcje przynależności dla zmiennej 'mood'")
+        plt.title("Funkcje przynależności zmiennej rozmytej 'nastrój'")
         plt.xlabel("Wartość nastroju")
         plt.ylabel("Stopień przynależności")
         plt.legend(loc="upper right")
@@ -145,7 +145,7 @@ class Fuzzy:
         plt.axhline(0, color='black', linewidth=1)
         plt.axvline(0, color='black', linewidth=1)
 
-        plt.title("Funkcje przynależności dla zmiennej 'time_of_day'")
+        plt.title("Funkcje przynależności zmiennej rozmytej 'pora_dnia'")
         plt.xlabel("Godzina dnia")
         plt.ylabel("Stopień przynależności")
         plt.legend(loc="upper right")

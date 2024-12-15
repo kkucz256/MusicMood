@@ -1,3 +1,4 @@
+from django.core.exceptions import MultipleObjectsReturned
 from django.utils import timezone
 from ..models import Genre, SongsPlaylist, Playlist, SongArtists, Artist, Song, User, PlaylistGenre, LikedSongs
 
@@ -31,12 +32,17 @@ class DatabaseConnector:
         return song
 
     def save_artist_to_db(self, artist_data):
-        artist, created = Artist.objects.get_or_create(
-            spotify_artist_id=artist_data['id'],
-            defaults={
-                'artist': artist_data['name']
-            }
-        )
+        try:
+            artist, created = Artist.objects.get_or_create(
+                spotify_artist_id=artist_data['id'],
+                defaults={'artist': artist_data['name']}
+            )
+        except MultipleObjectsReturned:
+            duplicates = Artist.objects.filter(spotify_artist_id=artist_data['id'])
+            primary_artist = duplicates.first()
+            duplicates.exclude(id=primary_artist.id).delete()
+            return primary_artist
+
         return artist
 
     def save_song_artist_relation(self, song, artist):

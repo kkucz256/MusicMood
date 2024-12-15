@@ -17,7 +17,7 @@ from ..models import LikedSongs, Playlist, Genre
 class SpotifyAPI:
     CLIENT_ID = 'd596c03aba8648328d29072f30f046bc'
     REDIRECT_URI = 'http://127.0.0.1:8000/callback'
-    # REDIRECT_URI = 'http://192.168.0.81:8000/callback'
+    #REDIRECT_URI = 'http://192.168.0.80:8000/callback'
     SCOPE = 'user-read-private user-read-email user-library-read user-library-modify playlist-read-private playlist-modify-public playlist-modify-private streaming user-read-playback-state user-modify-playback-state'
     AUTH_URL = 'https://accounts.spotify.com/authorize'
     TOKEN_URL = 'https://accounts.spotify.com/api/token'
@@ -245,7 +245,7 @@ class SpotifyAPI:
             'target_valence': valence,
             'target_tempo': tempo,
             'target_loudness': loudness,
-            'target_danceability': danceability,
+            'target_danceability': danceability,    
             'min_duration_ms': length_min_ms,
             'max_duration_ms': length_max_ms,
             'min_popularity': min_popularity
@@ -370,7 +370,7 @@ class SpotifyAPI:
                 recently_added_tracks = self.get_recently_added_tracks(access_token)
                 track_seeds = []
 
-                if recent_songs:
+                if songs_filtered_by_genre:
                     liked_songs = list(
                         LikedSongs.objects.filter(user=user, song__genre__genre=genre).values_list('song__spotify_id',
                                                                                                    flat=True))
@@ -511,3 +511,122 @@ class SpotifyAPI:
             tracks_data.append(track_info)
 
         return tracks_data
+
+    def search_artists(self, access_token, artist_name, limit=10, offset=0):
+        url = "https://api.spotify.com/v1/search"
+        headers = {'Authorization': f'Bearer {access_token}'}
+        params = {
+            'q': f'artist:{artist_name}',
+            'type': 'artist',
+            'limit': limit,
+            'offset': offset
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+
+        if response.status_code == 200:
+            artists = response.json().get('artists', {}).get('items', [])
+            return [
+                {
+                    'name': artist['name'],
+                    'id': artist['id'],
+                    'image_url': artist['images'][0]['url'] if artist.get('images') else None
+                }
+                for artist in artists
+            ]
+        else:
+            print(f"Nie udało się wyszukać artystów: {response.status_code} - {response.text}")
+            return []
+
+    def get_top_tracks_by_artist(self, access_token, artist_name, track_count):
+        search_url = "https://api.spotify.com/v1/search"
+        headers = {'Authorization': f'Bearer {access_token}'}
+        params = {
+            'q': f'artist:{artist_name}',
+            'type': 'artist',
+            'limit': 1
+        }
+
+        artist_response = requests.get(search_url, headers=headers, params=params)
+        if artist_response.status_code != 200 or not artist_response.json().get('artists', {}).get('items'):
+            print(f"Nie znaleziono artysty: {artist_name}")
+            return []
+
+        artist_id = artist_response.json()['artists']['items'][0]['id']
+        print(f"Znaleziono artystę '{artist_name}' z ID: {artist_id}")
+
+        top_tracks_url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks"
+        params = {
+            'market': 'EN',
+            'limit': 50
+        }
+        top_tracks_response = requests.get(top_tracks_url, headers=headers, params=params)
+
+        if top_tracks_response.status_code != 200:
+            return []
+
+        top_tracks = top_tracks_response.json().get('tracks', [])
+        if not top_tracks:
+            return []
+
+        random.shuffle(top_tracks)
+        selected_tracks = top_tracks[:track_count]
+
+        track_list = [{
+            'name': track['name'],
+            'id': track['id'],
+            'artist': artist_name
+        } for track in selected_tracks]
+
+        return track_list
+
+    def create_playlist_from_tracks(self, access_token, user_id, playlist_name, track_ids):
+        create_playlist_url = f"https://api.spotify.com/v1/users/{user_id}/playlists"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+        playlist_data = {
+            'name': playlist_name,
+            'public': False
+        }
+
+        response = requests.post(create_playlist_url, headers=headers, json=playlist_data)
+        if response.status_code != 201:
+            return None
+
+        playlist_id = response.json()['id']
+
+        add_tracks_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+        track_uris = [f"spotify:track:{track_id}" for track_id in track_ids]
+        add_tracks_response = requests.post(add_tracks_url, headers=headers, json={'uris': track_uris})
+
+        if add_tracks_response.status_code != 201:
+            return None
+
+        db_connector = DatabaseConnector()
+        user = db_connector.get_user_by_spotify_id(user_id)
+        if not user:
+            return None
+
+        playlist = db_connector.save_playlist_to_db(playlist_name, user, seeds="tastedive")
+        playlist.spotify_id = playlist_id
+        playlist.save()
+
+        for track_id in track_ids:
+            track_info = self.get_track_info(access_token, track_id)
+            if not track_info:
+                continue
+
+            song = db_connector.save_song_to_db(track_info,
+                                                genre_name="unknown")
+            if not song:
+                continue
+
+            for artist_data in track_info['artists']:
+                artist = db_connector.save_artist_to_db(artist_data)
+                db_connector.save_song_artist_relation(song, artist)
+
+            db_connector.save_song_playlist_relation(playlist, song)
+
+        return response.json()

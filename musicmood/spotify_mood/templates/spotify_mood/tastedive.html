@@ -1,0 +1,188 @@
+{% extends 'navbar.html' %}
+{% load static %}
+{% block navbar %}
+<form method="POST" action="{% url 'spotify_mood:tastedive' %}" style="padding: 100px;" onsubmit="return validateForm();">
+    {% csrf_token %}
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh;">
+
+        <h1 class="custom-h1">Uproszczona wersja rekomendacji - z pomocą tastedive</h1>
+
+        <div class="home_div">
+            <h1>Wyszukaj artystę:</h1>
+            <div id="artist_search_div" style="position: relative;">
+                <input type="text" id="artistSearch" placeholder="Wpisz nazwę artysty..." style="width: 100%; padding: 8px;">
+                <button type="button" class="bi bi-search" id="td_searchButton" onclick="searchArtist()"></button>
+            </div>
+            <ul class="songs-list" id="artistResults" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 10px;"></ul>
+            <div id="selectedArtistContainer" style="margin-top: 20px;"></div>
+            <input type="hidden" id="selectedArtistInput" name="selected_artist">
+        </div>
+
+        <div class="home_div">
+            <h1>Ustawienia playlisty:</h1>
+            <div id="td_playlist_container">
+                <div id="td_playlist_name_div">
+                    <label for="td_playlist_name">Nazwa playlisty:</label><br>
+                    <input type="text" id="td_playlist_name" name="playlist_name" placeholder="Wprowadź nazwę" style="width: 200px;">
+                </div>
+                <div>
+                    <label for="td_track_count">Ilość utworów:</label><br>
+                    <input type="number" id="td_track_count" name="track_count" min="10" step="10" max="50" value="10">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" type="submit" style="margin-top: 10px" value="generate_playlist" name="action" onclick="return validateForm()">
+            <svg width="240px" height="70px" viewBox="0 0 220 70" style="border: 1px solid var(--detal); border-radius: 4px;">
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="bg-line"></polyline>
+                <polyline points="219,1 219,69 1,69 1,1 219,1" class="hl-line"></polyline>
+            </svg>
+            <span>Generuj</span>
+        </button>
+
+    </div>
+</form>
+<div id="td_loadingModal">
+    <div id="td_modalContents">
+        <h2 id="loadingText">Tworzenie playlisty...</h2>
+        <p>Proszę czekać, to może chwilę potrwać.</p>
+    </div>
+</div>
+
+
+<script>
+    let selectedArtist = null;
+
+    function searchArtist() {
+        const artistName = document.getElementById('artistSearch').value.trim();
+        if (!artistName) {
+            alert("Wprowadź nazwę artysty!");
+            return;
+        }
+
+        fetch(`/search_artist/?q=${encodeURIComponent(artistName)}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('artistResults');
+                resultsDiv.innerHTML = '';
+
+                if (data.artists && data.artists.length > 0) {
+                    data.artists.forEach(artist => {
+                        const artistItem = document.createElement('li');
+                        artistItem.style.display = 'flex';
+                        artistItem.style.alignItems = 'center';
+                        artistItem.style.padding = '8px';
+                        artistItem.style.cursor = 'pointer';
+                        artistItem.onclick = () => selectArtist(artist);
+
+                        const artistImage = document.createElement('img');
+                        artistImage.src = artist.image_url || '{% static "spotify_mood/logo.png" %}';
+                        artistImage.alt = artist.name;
+                        artistImage.style.width = '50px';
+                        artistImage.style.height = '50px';
+                        artistImage.style.marginRight = '10px';
+
+                        const artistText = document.createElement('span');
+                        artistText.textContent = artist.name;
+
+                        artistItem.appendChild(artistImage);
+                        artistItem.appendChild(artistText);
+                        resultsDiv.appendChild(artistItem);
+                    });
+
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsDiv.innerHTML = '<li>Nie znaleziono artystów.</li>';
+                    resultsDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Błąd podczas wyszukiwania artystów:', error);
+            });
+    }
+
+    function selectArtist(artist) {
+        selectedArtist = artist;
+
+        document.getElementById('artistResults').style.display = 'none';
+        document.getElementById('artistResults').innerHTML = '';
+
+        const container = document.getElementById('selectedArtistContainer');
+        container.innerHTML = '';
+
+        const artistTag = document.createElement('div');
+        artistTag.classList.add('song-tag');
+        artistTag.style.display = 'flex';
+        artistTag.style.alignItems = 'center';
+        artistTag.style.marginTop = '10px';
+
+        const artistImage = document.createElement('img');
+        artistImage.src = artist.image_url || '{% static "spotify_mood/logo.png" %}';
+        artistImage.alt = artist.name;
+        artistImage.style.width = '50px';
+        artistImage.style.height = '50px';
+        artistImage.style.marginRight = '10px';
+
+        const artistName = document.createElement('span');
+        artistName.textContent = artist.name;
+        artistName.style.flex = '1';
+
+        const removeButton = document.createElement('span');
+        removeButton.textContent = ' X';
+        removeButton.classList.add('remove-button');
+        removeButton.style.cursor = 'pointer';
+        removeButton.onclick = () => removeArtist();
+
+        artistTag.appendChild(artistImage);
+        artistTag.appendChild(artistName);
+        artistTag.appendChild(removeButton);
+
+        container.appendChild(artistTag);
+
+        document.getElementById('selectedArtistInput').value = JSON.stringify(artist);
+    }
+
+    function removeArtist() {
+            selectedArtist = null;
+            document.getElementById('selectedArtistContainer').innerHTML = '';
+            document.getElementById('selectedArtistInput').value = '';
+    }
+
+    function showLoadingModal() {
+        const modal = document.getElementById('td_loadingModal');
+        const loadingText = document.getElementById('loadingText');
+        modal.style.display = 'flex';
+
+        let dotCount = 0;
+
+        const loadingInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            let dots = '.'.repeat(dotCount);
+            loadingText.textContent = `Tworzenie playlisty${dots}`;
+        }, 500);
+
+        modal.dataset.loadingInterval = loadingInterval;
+    }
+
+
+    function validateForm() {
+        const artist = document.getElementById('selectedArtistInput').value;
+        const playlistName = document.getElementById('td_playlist_name').value.trim();
+
+        if (!artist) {
+            alert('Musisz wybrać artystę!');
+            return false;
+        }
+
+        if (!playlistName) {
+            alert('Musisz podać nazwę playlisty!');
+            return false;
+        }
+
+        showLoadingModal();
+        return true;
+    }
+
+
+</script>
+{% endblock %}

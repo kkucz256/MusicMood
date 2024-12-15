@@ -17,5 +17,8 @@ urlpatterns = [
     path('like_song/<int:song_id>/', views.like_song, name='like_song'),
     path('unlike_song/<int:song_id>/', views.unlike_song, name='unlike_song'),
     path('search_song/', views.search_song_view, name='search_song'),
+    path('tastedive/', views.tastedive, name='tastedive'),
+    path('search_artist/', views.search_artist_view, name='search_artist'),
+
 ]
 

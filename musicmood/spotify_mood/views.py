@@ -1,3 +1,5 @@
+import random
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.urls import reverse
@@ -11,6 +13,8 @@ from .models import Genre
 from django.http import JsonResponse
 from requests.exceptions import HTTPError
 import json
+import requests
+import urllib.parse
 from .classes.SpotifyAPI import SpotifyAPI
 
 
@@ -56,6 +60,9 @@ def callback_view(request):
     spotify_api = SpotifyAPI()
     code = request.GET.get('code')
     code_verifier = request.session.get('code_verifier')
+
+    if 'error' in request.GET and request.GET['error'] == 'access_denied':
+        return redirect(reverse('spotify_mood:show_login_page') + '?error=access_denied')
 
     if not code:
         return HttpResponse("Authorization failed", status=400)
@@ -266,23 +273,34 @@ def settings_view(request):
 
 @check_access_token_expired
 def play_view(request):
+
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect(reverse('spotify_mood:show_login_page'))
 
     access_token = request.session.get('access_token')
-
     if not access_token:
         return redirect(reverse('spotify_mood:show_login_page'))
 
     status = request.session.pop('status', None)
     message = request.session.pop('message', None)
 
-    user = User.objects.get(id=user_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return redirect(reverse('spotify_mood:show_login_page'))
+
     playlists_in_db = Playlist.objects.filter(user=user).order_by('-created_at')
 
     spotify_api = SpotifyAPI()
     spotify_playlists = spotify_api.get_user_playlists(access_token)
+    if spotify_playlists is None:
+        return render(request, 'spotify_mood/play.html', {
+            'user': user,
+            'playlist_data': [],
+            'status': "error",
+            'message': "Nie udało się pobrać playlist ze Spotify. Upewnij się, że jesteś zalogowany."
+        })
 
     if not spotify_api.is_user_logged_in(access_token):
         params = urlencode({'message': 'Token expired'})
@@ -305,6 +323,8 @@ def play_view(request):
             'liked': True
         })
 
+    print(f"[DEBUG] Liczba polubionych utworów z danymi: {len(liked_songs_data)}")
+
     playlist_data = [{
         'playlist': {'name': 'Polubione utwory', 'spotify_id': None},
         'songs': liked_songs_data,
@@ -313,31 +333,49 @@ def play_view(request):
 
     valid_playlists = []
     for playlist in playlists_in_db:
+
+        matched_spotify_playlist = None
         for spotify_playlist in spotify_playlists:
+            if spotify_playlist is None:
+                continue
+
+            if 'id' not in spotify_playlist:
+                continue
+
             if playlist.spotify_id == spotify_playlist['id']:
-                songs_relations = SongsPlaylist.objects.filter(playlist=playlist)
-                songs = []
-                for relation in songs_relations:
-                    song = relation.song
-                    artist_relations = SongArtists.objects.filter(song=song)
-                    artists = [artist_relation.artist for artist_relation in artist_relations]
-                    track_image = song.photo_url
-                    is_liked = song.id in liked_songs_set
+                matched_spotify_playlist = spotify_playlist
+                break
 
-                    songs.append({
-                        'song': song,
-                        'artists': artists,
-                        'image_url': track_image,
-                        'liked': is_liked
-                    })
+        if not matched_spotify_playlist:
+            continue
 
-                image_url = spotify_playlist['images'][0]['url'] if spotify_playlist.get('images') and len(
-                    spotify_playlist['images']) > 0 else None
-                valid_playlists.append({
-                    'playlist': playlist,
-                    'songs': songs,
-                    'image_url': image_url
-                })
+        songs_relations = SongsPlaylist.objects.filter(playlist=playlist)
+        songs = []
+        for relation in songs_relations:
+            song = relation.song
+            artist_relations = SongArtists.objects.filter(song=song)
+            artists = [artist_relation.artist for artist_relation in artist_relations]
+            track_image = song.photo_url
+            is_liked = song.id in liked_songs_set
+
+            songs.append({
+                'song': song,
+                'artists': artists,
+                'image_url': track_image,
+                'liked': is_liked
+            })
+
+
+        image_url = matched_spotify_playlist['images'][0]['url'] if matched_spotify_playlist.get('images') and len(
+            matched_spotify_playlist['images']) > 0 else None
+
+        valid_playlists.append({
+            'playlist': playlist,
+            'songs': songs,
+            'image_url': image_url
+        })
+
+    print(f"[DEBUG] Liczba poprawnych playlist do wyświetlenia: {len(valid_playlists)}")
 
     playlist_data.extend(valid_playlists)
 
@@ -347,6 +385,7 @@ def play_view(request):
         'status': status,
         'message': message
     })
+
 
 
 @check_access_token_expired
@@ -434,3 +473,88 @@ def search_song_view(request):
         return JsonResponse({'songs': results})
 
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+def tastedive(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect(reverse('spotify_mood:show_login_page'))
+
+    user = User.objects.get(id=user_id)
+
+    if request.method == "POST":
+        artist_name = request.POST.get('selected_artist')
+        track_count = int(request.POST.get('track_count', 10))
+
+        try:
+            artist_data = json.loads(artist_name)
+        except json.JSONDecodeError:
+            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Niepoprawny format danych artysty!"})
+
+        if "name" not in artist_data:
+            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Nie znaleziono klucza 'name' w danych artysty!"})
+
+        artist_name_value = artist_data["name"]
+
+        tastedive_api_key = "1039779-MusicMoo-346EAE01"
+        encoded_artist_name = urllib.parse.quote_plus(artist_name_value)
+        tastedive_url = f"https://tastedive.com/api/similar?q={encoded_artist_name}&type=music&k={tastedive_api_key}&info=0"
+        response = requests.get(tastedive_url)
+        print(f"TasteDive URL: {tastedive_url}")
+
+        if response.status_code != 200:
+            print("Błąd z API TasteDive!")
+            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Błąd z API TasteDive!"})
+
+        data = response.json()
+        similar_artists = [
+                              result.get('name') for result in data.get('similar', {}).get('results', [])
+                              if result.get('type') == 'music'
+                          ][:10]
+
+        if not similar_artists:
+            return render(request, "spotify_mood/tastedive.html", {'user': user, 'error': "Nie znaleziono podobnych artystów."})
+
+        for artist in similar_artists:
+            print(f"- {artist}")
+
+        spotify_api = SpotifyAPI()
+        access_token = request.session.get('access_token')
+
+        songs_per_artist = max(1, track_count // 10)
+        all_track_ids = []
+
+        for artist in similar_artists:
+            tracks = spotify_api.get_top_tracks_by_artist(access_token, artist, songs_per_artist)
+            for track in tracks:
+                all_track_ids.append(track['id'])
+
+        random.shuffle(all_track_ids)
+        playlist_name = request.POST.get('playlist_name', f"Playlista na podstawie {artist_name_value}")
+
+        spotify_api.create_playlist_from_tracks(
+            access_token=access_token,
+            user_id=user.spotify_id,
+            playlist_name=playlist_name,
+            track_ids=all_track_ids
+        )
+
+        return redirect(reverse('spotify_mood:play'))
+
+    return render(request, "spotify_mood/tastedive.html", {'user': user})
+
+@check_access_token_expired
+def search_artist_view(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+
+    access_token = request.session.get('access_token')
+    artist_name = request.GET.get('q', '').strip()
+
+    if not artist_name:
+        return JsonResponse({'error': 'Artist name is required'}, status=400)
+
+    spotify_api = SpotifyAPI()
+    results = spotify_api.search_artists(access_token, artist_name)
+
+    return JsonResponse({'artists': results})
